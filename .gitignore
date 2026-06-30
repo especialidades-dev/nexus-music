@@ -60,6 +60,13 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Harmony OS / OpenHarmony
+**/ohos/entry/build/
+**/ohos/build/
+**/ohos/.hvigor/
+**/ohos/local.properties
+ohos/entry/src/main/resources/rawfile/buildinfo.json5
+
 # FVM Version Cache
 .fvm/
 .fvmrc

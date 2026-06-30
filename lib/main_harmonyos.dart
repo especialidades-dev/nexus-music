@@ -1,17 +1,14 @@
-import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:terminate_restart/terminate_restart.dart';
 
 import '/ui/screens/Search/search_screen_controller.dart';
 import '/utils/get_localization.dart';
 import '/services/downloader.dart';
 import '/services/piped_service.dart';
 import 'utils/app_link_controller.dart';
-import '/services/audio_handler.dart';
 import '/services/music_service.dart';
 import '/ui/home.dart';
 import '/ui/player/player_controller.dart';
@@ -19,33 +16,25 @@ import 'ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/utils/theme_controller.dart';
 import 'ui/screens/Home/home_screen_controller.dart';
 import 'ui/screens/Library/library_controller.dart';
-import 'utils/system_tray.dart';
-import 'utils/update_check_flag_file.dart';
 import 'services/harmonyos_audio_service.dart';
+import 'utils/update_check_flag_file.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initHive();
   _setAppInitPrefs();
   startApplicationServices();
-  if (isHarmonyOS) {
-    Get.put<AudioHandler>(await initHarmonyOSAudioService(), permanent: true);
-  } else {
-    Get.put<AudioHandler>(await initAudioService(), permanent: true);
-  }
+  Get.put<AudioHandler>(await initHarmonyOSAudioService(), permanent: true);
   WidgetsBinding.instance.addObserver(LifecycleHandler());
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  TerminateRestart.instance.initialize();
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    if (!GetPlatform.isDesktop) Get.put(AppLinksController());
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     return GetMaterialApp(
         title: 'Nexus Music',
@@ -98,21 +87,11 @@ Future<void> startApplicationServices() async {
   Get.lazyPut(() => LibraryArtistsController(), fenix: true);
   Get.lazyPut(() => SettingsScreenController(), fenix: true);
   Get.lazyPut(() => Downloader(), fenix: true);
-  if (GetPlatform.isDesktop) {
-    Get.lazyPut(() => SearchScreenController(), fenix: true);
-    Get.put(DesktopSystemTray());
-  }
 }
 
 initHive() async {
-  String applicationDataDirectoryPath;
-  if (GetPlatform.isDesktop) {
-    applicationDataDirectoryPath =
-        "${(await getApplicationSupportDirectory()).path}/db";
-  } else {
-    applicationDataDirectoryPath =
-        (await getApplicationDocumentsDirectory()).path;
-  }
+  String applicationDataDirectoryPath =
+      (await getApplicationDocumentsDirectory()).path;
   await Hive.initFlutter(applicationDataDirectoryPath);
   await Hive.openBox("SongsCache");
   await Hive.openBox("SongDownloads");
@@ -133,19 +112,6 @@ void _setAppInitPrefs() {
       'newVersionVisibility': updateCheckFlag,
       "cacheHomeScreenData": true
     });
-  }
-}
-
-bool get isHarmonyOS {
-  try {
-    return !GetPlatform.isAndroid &&
-        !GetPlatform.isIOS &&
-        !GetPlatform.isMacOS &&
-        !GetPlatform.isWindows &&
-        !GetPlatform.isLinux &&
-        !GetPlatform.isWeb;
-  } catch (_) {
-    return false;
   }
 }
 

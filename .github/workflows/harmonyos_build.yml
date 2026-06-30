@@ -1,0 +1,50 @@
+name: Build Harmony OS HAP
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-harmonyos:
+    name: Build Harmony OS .hap package
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Harmony OS Flutter SDK
+        run: |
+          git clone -b oh-3.22.0 https://gitee.com/openharmony-sig/flutter_flutter.git /opt/flutter-ohos
+          echo "/opt/flutter-ohos/bin" >> $GITHUB_PATH
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Harmony OS SDK
+        run: |
+          wget -q https://contentcenter-drcn.dbankcdn.com/cs_public/static/ohos_sdk/ohos-sdk-linux.tar.gz
+          tar -xzf ohos-sdk-linux.tar.gz -C /opt/
+          echo "DEVECO_SDK_HOME=/opt/ohos-sdk" >> $GITHUB_ENV
+          echo "/opt/ohos-sdk/ohpm/bin" >> $GITHUB_PATH
+          echo "/opt/ohos-sdk/hvigor/bin" >> $GITHUB_PATH
+          echo "/opt/ohos-sdk/node/bin" >> $GITHUB_PATH
+
+      - name: Configure Flutter for Harmony OS
+        run: |
+          flutter config --enable-ohos
+          flutter pub get
+
+      - name: Build Harmony OS HAP (debug)
+        run: |
+          flutter build hap --debug --target-platform ohos-arm64
+
+      - name: Upload HAP artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nexus-music-harmonyos-hap
+          path: ohos/entry/build/default/outputs/default/*.hap

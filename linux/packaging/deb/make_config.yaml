@@ -1,7 +1,7 @@
-display_name: Harmony Music
-package_name: harmonymusic
+display_name: Nexus Music
+package_name: nexusmusic
 maintainer:
-  name: anandnet
+  name: Nexus Music Team
 priority: optional
 section: x11
 installed_size: 20000
@@ -19,6 +19,8 @@ keywords:
   - Music
   - Streaming
   - Flutter
+  - Linux
+  - HarmonyOS
 
 generic_name: Music Application
 
