@@ -68,7 +68,6 @@ class HarmonyOSAudioHandler extends BaseAudioHandler {
     });
   }
 
-  @override
   Future<void> setVolume(double volume) async {
     await _channel.invokeMethod('setVolume', {
       'value': volume,
