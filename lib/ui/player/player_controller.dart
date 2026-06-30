@@ -14,6 +14,7 @@ import '/services/synced_lyrics_service.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../services/windows_audio_service.dart';
+import '../../services/audio_handler.dart' show MyAudioHandler;
 import '../../utils/helper.dart';
 import '/models/media_Item_builder.dart';
 import '../screens/Home/home_screen_controller.dart';
@@ -91,7 +92,7 @@ class PlayerController extends GetxController
 
   @override
   void onReady() {
-    if (GetPlatform.isWindows) {
+    if (GetPlatform.isWindows && !MyAudioHandler.isHarmonyOS) {
       Get.put(WindowsAudioService());
     }
     _restorePrevSession();
@@ -113,7 +114,7 @@ class PlayerController extends GetxController
     isQueueLoopModeEnabled.value =
         appPrefs.get("queueLoopModeEnabled") ?? false;
 
-    if (GetPlatform.isDesktop) {
+    if (GetPlatform.isDesktop || MyAudioHandler.isHarmonyOS) {
       setVolume(appPrefs.get("volume") ?? 100);
     }
 

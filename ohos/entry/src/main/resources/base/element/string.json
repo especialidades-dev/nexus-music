@@ -1,0 +1,12 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "Nexus Music"
+    },
+    {
+      "name": "description_main",
+      "value": "Cross-platform music streaming app"
+    }
+  ]
+}
