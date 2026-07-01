@@ -7,6 +7,7 @@ import 'package:get/get.dart' as getx;
 import 'package:hive/hive.dart';
 
 import '/models/album.dart';
+import '/models/artist.dart';
 import '/services/utils.dart';
 import '../utils/helper.dart';
 import 'constant.dart';
@@ -691,14 +692,68 @@ class MusicServices extends getx.GetxService {
 
     results = nav(results, ['sectionListRenderer', 'contents']);
 
-    if (results.length == 1 && results[0]['itemSectionRenderer'] != null) {
-      return searchResults;
-    }
-
     String? type;
 
     for (var res in results) {
       String category;
+
+      // Handle itemSectionRenderer (new format: flat ungrouped items)
+      if (res['itemSectionRenderer'] != null) {
+        if (filter != null) continue;
+        final items = res['itemSectionRenderer']['contents'];
+        if (items == null || items is! List) continue;
+        final mixedItems = parseSearchResults(items,
+            ['artist', 'playlist', 'song', 'video', 'station'], null, 'mixed');
+        for (var item in mixedItems) {
+          final itemType = item.runtimeType == MediaItem
+              ? "Songs"
+              : "${item.runtimeType}s";
+          if (searchResults.containsKey(itemType) &&
+              (searchResults[itemType]).length < 10) {
+            (searchResults[itemType] as List).add(item);
+          } else if (!searchResults.containsKey(itemType)) {
+            searchResults[itemType] = [item];
+          }
+        }
+        continue;
+      }
+
+      // Handle musicCardShelfRenderer (top result card)
+      if (res['musicCardShelfRenderer'] != null) {
+        if (filter != null) continue;
+        final card = res['musicCardShelfRenderer'];
+        final onTap = card['onTap'] ?? {};
+        final browseEndpoint = onTap['browseEndpoint'] ?? {};
+        final pageType = nav(browseEndpoint, [
+          'browseEndpointContextSupportedConfigs', 'browseEndpointContextMusicConfig', 'pageType'
+        ]);
+        if (pageType != null) {
+          final Map<String, dynamic> cardData = {};
+          cardData['title'] = nav(card, ['title', 'runs', 0, 'text']);
+          cardData['thumbnails'] = nav(card, ['thumbnail', 'musicThumbnailRenderer', 'thumbnail', 'thumbnails']);
+          cardData['browseId'] = browseEndpoint['browseId'];
+          if (pageType == 'MUSIC_PAGE_TYPE_ARTIST') {
+            cardData['artist'] = cardData['title'];
+            final artist = Artist.fromJson(cardData);
+            if (searchResults.containsKey('Artists')) {
+              (searchResults['Artists'] as List).add(artist);
+            } else {
+              searchResults['Artists'] = [artist];
+            }
+          } else if (pageType == 'MUSIC_PAGE_TYPE_ALBUM') {
+            cardData['type'] = 'Album';
+            final album = Album.fromJson(cardData);
+            if (searchResults.containsKey('Albums')) {
+              (searchResults['Albums'] as List).add(album);
+            } else {
+              searchResults['Albums'] = [album];
+            }
+          }
+        }
+        continue;
+      }
+
+      // Handle musicShelfRenderer (old format: categorized shelves)
       if (res['musicShelfRenderer'] != null) {
         dynamic itemResults = res['musicShelfRenderer']['contents'];
         String? typeFilter = filter;
@@ -708,10 +763,10 @@ class MusicServices extends getx.GetxService {
         if (filter == null) {
           for (var item in mixedItems) {
             final itemType = item.runtimeType == MediaItem
-                ? (item.artist.split(",")[0]) + "s"
+                ? "Songs"
                 : "${item.runtimeType}s";
             if (searchResults.containsKey(itemType) &&
-                (searchResults[itemType]).length < 3) {
+                (searchResults[itemType]).length < 10) {
               (searchResults[itemType] as List).add(item);
             } else if (!searchResults.containsKey(itemType)) {
               searchResults[itemType] = [item];
