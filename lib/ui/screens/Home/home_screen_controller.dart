@@ -158,12 +158,21 @@ class HomeScreenController extends GetxController {
           final con = homeContentListMap.removeAt(index);
           quickPicks.value = QuickPicks(List<MediaItem>.from(con["contents"]),
               title: "Quick picks");
-        } else if (homeContentListMap.isNotEmpty) {
-          // fallback: use first available section as quick picks
-          final first = homeContentListMap.removeAt(0);
-          quickPicks.value = QuickPicks(
-              List<MediaItem>.from(first["contents"]),
-              title: first["title"]);
+        } else {
+          // find a section with songs (MediaItem) for quick picks
+          final songSection = homeContentListMap.indexWhere((element) =>
+              element['contents'].isNotEmpty &&
+              element['contents'][0] is MediaItem);
+          if (songSection != -1) {
+            final con = homeContentListMap.removeAt(songSection);
+            quickPicks.value = QuickPicks(
+                List<MediaItem>.from(con["contents"]),
+                title: con["title"]);
+          } else if (homeContentListMap.isNotEmpty) {
+            // no song section found; remove the first section from fixedContent
+            // so it's not duplicated, but leave quickPicks empty
+            homeContentListMap.removeAt(0);
+          }
         }
       }
 
