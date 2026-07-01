@@ -1,6 +1,6 @@
 # Nexus Music 🎵
 
-> Fork de [Harmony-Music](https://github.com/anandnet/Harmony-Music) con soporte para **Linux Debian** y **Harmony OS 6.1.x**
+> Fork de [Harmony-Music](https://github.com/anandnet/Harmony-Music) con soporte para **Linux Debian** y **Harmony OS 6.1.x** (aún en desarrollo)
 
 Aplicación multiplataforma para streaming de música construida con Flutter.
 
@@ -30,9 +30,20 @@ Aplicación multiplataforma para streaming de música construida con Flutter.
 | Plataforma | Estado |
 |-----------|--------|
 | Linux (Debian/Ubuntu) | ✅ |
-| Harmony OS 6.1.x | ✅ (Flutter OHOS port) |
-| Windows | Mantenido del upstream |
-| Android | Mantenido del upstream |
+| Harmony OS 6.1.x | ✅ (Flutter OHOS port) |(sin probar aún)
+| Windows | Mantenido del upstream | (no planeado)
+| Android | Mantenido del upstream | (En pruebas)
+
+## Disclaimer
+He creado este fork sólo para fines de aprendizaje, no pretendo tener ningún tipo de sponsor ni afiliación de ningún tipo. 
+
+Todas las canciones, contenidos y marcas registradas utilizadas en esta aplicación son propiedad intelectual de sus respectivos dueños.
+
+No me responsabilizo de ninguna infracción de derechos de autor u otros derechos de propiedad intelectual que puedan derivarse del uso de las canciones y demás contenido disponible a través de esta aplicación.
+
+En ningún caso el autor de este software será responsable de daños especiales, consecuenciales, incidentales o indirectos de cualquier tipo (incluidas, entre otras, pérdidas económicas) derivados del uso o la imposibilidad de usar este producto, incluso si el autor conoce la posibilidad de dichos daños y defectos.
+
+Este software se distribuye "tal cual", sin garantía ni responsabilidad alguna.
 
 ## Compilación
 
