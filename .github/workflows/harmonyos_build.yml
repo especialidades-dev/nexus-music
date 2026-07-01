@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Harmony OS Flutter SDK
         run: |
@@ -20,7 +20,7 @@ jobs:
           echo "/opt/flutter-ohos/bin" >> $GITHUB_PATH
 
       - name: Setup JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -44,7 +44,7 @@ jobs:
           flutter build hap --debug --target-platform ohos-arm64
 
       - name: Upload HAP artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: nexus-music-harmonyos-hap
           path: ohos/entry/build/default/outputs/default/*.hap

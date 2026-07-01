@@ -12,10 +12,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@v2.16.0
         with:
           channel: 'stable'
           flutter-version: '3.24.2'
@@ -40,7 +40,7 @@ jobs:
           flutter_distributor package --platform linux --targets deb
 
       - name: Upload .deb artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: nexus-music-linux-deb
           path: dist/*.deb
@@ -50,7 +50,7 @@ jobs:
           flutter_distributor package --platform linux --targets rpm
 
       - name: Upload .rpm artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: nexus-music-linux-rpm
           path: dist/*.rpm
