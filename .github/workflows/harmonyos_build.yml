@@ -16,7 +16,7 @@ jobs:
 
       - name: Setup Harmony OS Flutter SDK
         run: |
-          git clone -b oh-3.22.0 https://gitee.com/openharmony-sig/flutter_flutter.git /opt/flutter-ohos
+          git clone -b 3.22.0-ohos https://gitcode.com/openharmony-sig/flutter_flutter.git /opt/flutter-ohos
           echo "/opt/flutter-ohos/bin" >> $GITHUB_PATH
 
       - name: Setup JDK 17

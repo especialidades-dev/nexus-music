@@ -27,7 +27,7 @@ Guía completa para compilar e instalar Nexus Music en dispositivos Harmony OS 6
 
 ```bash
 # Clonar Flutter con soporte OHOS
-git clone -b oh-3.22.0 https://gitee.com/openharmony-sig/flutter_flutter.git ~/flutter-ohos
+git clone -b 3.22.0-ohos https://gitcode.com/openharmony-sig/flutter_flutter.git ~/flutter-ohos
 
 # Agregar al PATH
 export PATH="$HOME/flutter-ohos/bin:$PATH"

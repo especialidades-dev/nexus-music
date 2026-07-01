@@ -50,7 +50,7 @@ case "$PLATFORM" in
       echo "ERROR: Flutter OHOS SDK not detected."
       echo ""
       echo "Setup:"
-      echo "  1. git clone -b oh-3.22.0 https://gitee.com/openharmony-sig/flutter_flutter.git"
+      echo "  1. git clone -b 3.22.0-ohos https://gitcode.com/openharmony-sig/flutter_flutter.git"
       echo "  2. export PATH=\$PATH:/path/to/flutter_flutter/bin"
       echo "  3. flutter config --enable-ohos"
       echo ""

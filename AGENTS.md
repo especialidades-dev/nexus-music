@@ -14,7 +14,7 @@ flutter_distributor package --platform linux --targets deb
 ### Harmony OS 6.1.x
 ```bash
 # Use OHOS-enabled Flutter SDK
-# git clone https://gitee.com/openharmony-sig/flutter_flutter.git
+# git clone -b 3.22.0-ohos https://gitcode.com/openharmony-sig/flutter_flutter.git
 flutter config --enable-ohos
 flutter build hap --debug --target-platform ohos-arm64
 ```

@@ -7,10 +7,10 @@ echo ""
 # Verify Flutter OHOS SDK
 if ! flutter doctor -v 2>&1 | grep -q "ohos"; then
     echo "ERROR: Flutter OHOS SDK not detected."
-    echo "Please install: https://gitee.com/openharmony-sig/flutter_flutter"
+    echo "Please install: https://gitcode.com/openharmony-sig/flutter_flutter"
     echo ""
     echo "Quick setup:"
-    echo "  git clone -b oh-3.22.0 https://gitee.com/openharmony-sig/flutter_flutter.git"
+    echo "  git clone -b 3.22.0-ohos https://gitcode.com/openharmony-sig/flutter_flutter.git"
     echo "  export PATH=\$PATH:/path/to/flutter_flutter/bin"
     echo "  flutter config --enable-ohos"
     exit 1
