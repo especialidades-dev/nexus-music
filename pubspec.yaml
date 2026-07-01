@@ -86,8 +86,7 @@ dependencies:
       ref: 1d9ec9baa806705b1d859260eeb389ec28c6b024
 dependency_overrides:
   meta: 1.12.0
-  wakelock_plus: 1.2.1
-  win32: 5.5.4
+  win32: 5.5.2
 
 dev_dependencies:
 
