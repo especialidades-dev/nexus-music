@@ -168,10 +168,6 @@ class HomeScreenController extends GetxController {
             quickPicks.value = QuickPicks(
                 List<MediaItem>.from(con["contents"]),
                 title: con["title"]);
-          } else if (homeContentListMap.isNotEmpty) {
-            // no song section found; remove the first section from fixedContent
-            // so it's not duplicated, but leave quickPicks empty
-            homeContentListMap.removeAt(0);
           }
         }
       }
