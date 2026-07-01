@@ -254,6 +254,8 @@ class MusicServices extends getx.GetxService {
     final List<dynamic> tracks = [];
     dynamic lyricsBrowseId, relatedBrowseId, playlist;
     final results = {};
+    bool useBrowseFallback = false;
+    dynamic additionalParamsForNext;
 
     if (additionalParamsNext == null) {
       final response = (await _sendRequest("next", data)).data;
@@ -273,23 +275,58 @@ class MusicServices extends getx.GetxService {
         };
       }
 
-      results.addAll(nav(watchNextRenderer, [
+      final panelContent = nav(watchNextRenderer, [
         ...tab_content,
         'musicQueueRenderer',
         'content',
         'playlistPanelRenderer'
-      ]));
-      playlist = results['contents']
-          .map((content) => nav(content,
-              ['playlistPanelVideoRenderer', ...navigation_playlist_id]))
-          .where((e) => e != null)
-          .toList()
-          .first;
-      tracks.addAll(parseWatchPlaylist(results['contents']));
+      ]);
+
+      if (panelContent != null) {
+        results.addAll(panelContent);
+        playlist = results['contents']
+            .map((content) => nav(content,
+                ['playlistPanelVideoRenderer', ...navigation_playlist_id]))
+            .where((e) => e != null)
+            .toList()
+            .first;
+        tracks.addAll(parseWatchPlaylist(results['contents']));
+      } else {
+        useBrowseFallback = true;
+      }
     }
 
-    dynamic additionalParamsForNext;
-    if (results.containsKey('continuations') || additionalParamsNext != null) {
+    if (useBrowseFallback || additionalParamsNext != null) {
+      final browseData = Map.from(_context);
+      browseData['browseId'] = "VL$playlistId";
+
+      if (additionalParamsNext == null) {
+        final browseResponse =
+            (await _sendRequest('browse', browseData)).data;
+        final shelfContent = nav(browseResponse, musicPlaylistShelfRenderer) ??
+            nav(browseResponse, [
+              'contents',
+              'singleColumnBrowseResultsRenderer',
+              'tabs',
+              0,
+              'tabRenderer',
+              'content',
+              'sectionListRenderer',
+              'contents',
+              0,
+              'musicPlaylistShelfRenderer'
+            ]);
+        if (shelfContent != null) {
+          playlist = shelfContent['playlistId'];
+          tracks.addAll(parsePlaylistItems(shelfContent['contents']));
+          requestFuncContinuation(cont) async =>
+              (await _sendRequest("browse", {...browseData, ...cont})).data;
+          parseFunc(contents) => parsePlaylistItems(contents);
+          tracks.addAll(await getContinuationsPlaylist(
+              shelfContent, limit - tracks.length, requestFuncContinuation, parseFunc));
+        }
+      }
+    } else if (results.containsKey('continuations') || additionalParamsNext != null) {
       requestFunc(additionalParams) async =>
           (await _sendRequest("next", data, additionalParams: additionalParams))
               .data;
