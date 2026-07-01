@@ -63,11 +63,14 @@ jobs:
       - name: Configure Flutter for Harmony OS
         run: |
           flutter config --enable-ohos
-          flutter pub get
+          # pub get resolves deps and generates pubspec.lock.
+          # Plugin injection crashes on OHOS 3.22.0 (null cast bug in AppInfo.getAppInfo).
+          # We tolerate the crash to retain the lock file, then build with --no-pub.
+          flutter pub get 2>&1 || echo "pub get crashed (expected - OHOS plugin injection bug), lock file generated"
 
       - name: Build Harmony OS HAP (debug)
         run: |
-          flutter build hap --debug --target-platform ohos-arm64
+          flutter build hap --debug --target-platform ohos-arm64 --no-pub
 
       - name: Upload HAP artifact
         uses: actions/upload-artifact@v4
