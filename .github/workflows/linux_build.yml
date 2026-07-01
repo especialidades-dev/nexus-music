@@ -27,7 +27,8 @@ jobs:
             libmpv-dev mpv \
             libayatana-appindicator3-dev \
             ninja-build libgtk-3-dev \
-            liblzma-dev cmake
+            liblzma-dev cmake \
+            rpm patchelf
 
       - name: Install packages
         run: flutter pub get
