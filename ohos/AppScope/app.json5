@@ -1,16 +1,14 @@
 {
   "app": {
     "bundleName": "io.github.nexusmusic.app",
-    "bundleType": "app",
     "vendor": "Nexus Music Team",
     "version": {
-      "code": 28,
-      "name": "1.13.0"
+      "code": 1,
+      "name": "1.0.0"
     },
     "apiVersion": {
       "compatible": 12,
-      "target": 12,
-      "releaseType": "Release"
+      "target": 12
     }
   }
 }
