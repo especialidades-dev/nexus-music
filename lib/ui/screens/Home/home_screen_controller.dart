@@ -90,9 +90,10 @@ class HomeScreenController extends GetxController {
     String contentType = box.get("discoverContentType") ?? "QP";
 
     networkError.value = false;
+    List homeContentListMap = [];
     try {
       List middleContentTemp = [];
-      final homeContentListMap = await _musicServices.getHome(
+      homeContentListMap = await _musicServices.getHome(
           limit:
               Get.find<SettingsScreenController>().noOfHomeScreenContent.value);
       if (contentType == "TR") {
@@ -153,9 +154,17 @@ class HomeScreenController extends GetxController {
       if (quickPicks.value.songList.isEmpty) {
         final index = homeContentListMap
             .indexWhere((element) => element['title'] == "Quick picks");
-        final con = homeContentListMap.removeAt(index);
-        quickPicks.value = QuickPicks(List<MediaItem>.from(con["contents"]),
-            title: "Quick picks");
+        if (index != -1) {
+          final con = homeContentListMap.removeAt(index);
+          quickPicks.value = QuickPicks(List<MediaItem>.from(con["contents"]),
+              title: "Quick picks");
+        } else if (homeContentListMap.isNotEmpty) {
+          // fallback: use first available section as quick picks
+          final first = homeContentListMap.removeAt(0);
+          quickPicks.value = QuickPicks(
+              List<MediaItem>.from(first["contents"]),
+              title: first["title"]);
+        }
       }
 
       middleContent.value = _setContentList(middleContentTemp);
@@ -172,6 +181,13 @@ class HomeScreenController extends GetxController {
       printERROR("Home Content not loaded due to ${r.message}");
       await Future.delayed(const Duration(seconds: 1));
       networkError.value = !silent;
+    } catch (e) {
+      printERROR("Home Content parse error: $e");
+      if (homeContentListMap.isNotEmpty) {
+        isContentFetched.value = true;
+      } else {
+        networkError.value = !silent;
+      }
     }
   }
 
