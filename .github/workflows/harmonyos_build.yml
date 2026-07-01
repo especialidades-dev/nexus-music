@@ -27,12 +27,38 @@ jobs:
 
       - name: Setup Harmony OS SDK
         run: |
-          wget -q https://contentcenter-drcn.dbankcdn.com/cs_public/static/ohos_sdk/ohos-sdk-linux.tar.gz
-          tar -xzf ohos-sdk-linux.tar.gz -C /opt/
-          echo "DEVECO_SDK_HOME=/opt/ohos-sdk" >> $GITHUB_ENV
-          echo "/opt/ohos-sdk/ohpm/bin" >> $GITHUB_PATH
-          echo "/opt/ohos-sdk/hvigor/bin" >> $GITHUB_PATH
-          echo "/opt/ohos-sdk/node/bin" >> $GITHUB_PATH
+          # Download HarmonyOS command-line-tools from HuggingFace mirror
+          # (original Huawei CDN URL contentcenter-drcn.dbankcdn.com returned 404)
+          wget -q --timeout=300 \
+            "https://huggingface.co/csukuangfj/harmonyos-commandline-tools/resolve/main/commandline-tools-linux-x64-5.0.3.906.zip?download=true" \
+            -O /tmp/hos-tools.zip
+          unzip -q /tmp/hos-tools.zip -d /opt/
+          rm /tmp/hos-tools.zip
+          # Find the extracted directory (name may vary by version)
+          SDK_DIR=$(ls -d /opt/command-line-tools* 2>/dev/null | head -1)
+          if [ -z "$SDK_DIR" ]; then
+            # Try other possible names
+            SDK_DIR=$(ls -d /opt/commandline-tools* /opt/hos* /opt/ohos* 2>/dev/null | head -1)
+          fi
+          echo "SDK_DIR=$SDK_DIR"
+          # Rename to a stable path if needed
+          if [ "$SDK_DIR" != "/opt/command-line-tools" ] && [ -n "$SDK_DIR" ]; then
+            mv "$SDK_DIR" /opt/command-line-tools
+          fi
+          # Debug: show structure
+          echo "=== SDK structure ==="
+          find /opt/command-line-tools -maxdepth 3 -type d | head -30
+          echo "=== bin contents ==="
+          ls -la /opt/command-line-tools/bin/ 2>/dev/null || echo "No bin dir"
+          echo "=== sdk contents ==="
+          ls -la /opt/command-line-tools/sdk/ 2>/dev/null || echo "No sdk dir"
+          echo "=== tool contents ==="
+          ls -la /opt/command-line-tools/tool/ 2>/dev/null || echo "No tool dir"
+          # Set up environment
+          echo "DEVECO_SDK_HOME=/opt/command-line-tools/sdk" >> $GITHUB_ENV
+          echo "NODE_HOME=/opt/command-line-tools/tool/node" >> $GITHUB_ENV
+          echo "/opt/command-line-tools/bin" >> $GITHUB_PATH
+          echo "/opt/command-line-tools/tool/node/bin" >> $GITHUB_PATH
 
       - name: Configure Flutter for Harmony OS
         run: |
