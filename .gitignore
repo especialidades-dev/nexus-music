@@ -73,6 +73,9 @@ ohos/entry/src/main/resources/rawfile/buildinfo.json5
 
 settings.json
 
+# API keys - add your own key in constant.dart
+lib/services/constant.dart
+
 android/app/.cxx/Debug/*
 
 /android/app/.cxx
