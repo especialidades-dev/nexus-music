@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Harmony OS Flutter SDK
         run: |
@@ -68,12 +68,21 @@ jobs:
           # We tolerate the crash to retain the lock file, then build with --no-pub.
           flutter pub get 2>&1 || echo "pub get crashed (expected - OHOS plugin injection bug), lock file generated"
 
+      - name: Create constant.dart
+        run: |
+          cat > lib/services/constant.dart << 'EOF'
+          const String domain = "https://music.youtube.com/";
+          const String baseUrl = '${domain}youtubei/v1/';
+          const String fixedParms = '?prettyPrint=false&alt=json&key=${{ secrets.YTM_API_KEY }}';
+          const String userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36';
+          EOF
+
       - name: Build Harmony OS HAP (debug)
         run: |
           flutter build hap --debug --target-platform ohos-arm64 --no-pub
 
       - name: Upload HAP artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: nexus-music-harmonyos-hap
           path: ohos/entry/build/default/outputs/default/*.hap
