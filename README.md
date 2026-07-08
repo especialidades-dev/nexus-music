@@ -30,12 +30,18 @@ Aplicación multiplataforma para streaming de música construida con Flutter.
 | Plataforma | Estado |
 |-----------|--------|
 | Linux (Debian/Ubuntu) | ✅ |
-| Harmony OS 6.1.x | ✅ (Flutter OHOS port) |(sin probar aún)
-| Windows | Mantenido del upstream | (no planeado)
-| Android | Mantenido del upstream | (En pruebas)
+| Harmony OS 6.1.x | Flutter OHOS port -sin probar aún |
+| Windows | No planeado |
+| Android | ✅| 
+
+## Licencia
+Al igual que Harmony Music, NEXUS Music es un software libre licenciado bajo GPL v3.0 con las siguientes condiciones.
+
+- Las copias o modificaciones de este software no pueden ser usadas con fines no libres y/o no gratuitos.
+- No se puede publicar copias o modificaciones de este software en fuentes de aplicaciones o repositorios cerrados como PlayStore/AppStore.
 
 ## Disclaimer
-He creado este fork sólo para fines de aprendizaje, no pretendo tener ningún tipo de sponsor ni afiliación de ningún tipo. 
+He creado este fork sólo para fines de aprendizaje y uso personal, no pretendo tener ningún tipo de sponsor ni afiliación de ningún tipo. 
 
 Todas las canciones, contenidos y marcas registradas utilizadas en esta aplicación son propiedad intelectual de sus respectivos dueños.
 
