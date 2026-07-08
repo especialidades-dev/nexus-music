@@ -12,13 +12,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2.16.0
+        uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
           flutter-version: '3.24.2'
+
+      - name: Create constant.dart
+        run: |
+          cat > lib/services/constant.dart << 'EOF'
+          const String domain = "https://music.youtube.com/";
+          const String baseUrl = '${domain}youtubei/v1/';
+          const String fixedParms = '?prettyPrint=false&alt=json&key=${{ secrets.YTM_API_KEY }}';
+          const String userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36';
+          EOF
 
       - name: Install packages
         run: flutter pub get
@@ -28,7 +37,7 @@ jobs:
           flutter build apk --release
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: nexus-music-android-apk
           path: build/app/outputs/flutter-apk/*.apk
