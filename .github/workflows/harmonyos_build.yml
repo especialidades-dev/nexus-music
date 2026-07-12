@@ -27,10 +27,12 @@ jobs:
 
       - name: Setup Harmony OS SDK
         run: |
-          # Download HarmonyOS command-line-tools from HuggingFace mirror
-          # (original Huawei CDN URL contentcenter-drcn.dbankcdn.com returned 404)
-          wget -q --timeout=300 \
-            "https://huggingface.co/csukuangfj/harmonyos-commandline-tools/resolve/main/commandline-tools-linux-x64-5.0.3.906.zip?download=true" \
+          # Official HarmonyOS command-line-tools (matches the dev machine's SDK:
+          # this exact build bundles hvigor 5.8.9, required by flutter-ohos 3.22.0).
+          # The HuggingFace mirror's 5.0.3.906 is an older build with hvigor 5.0.x
+          # and fails with "appContext.getOverrides is not a function".
+          wget -q --timeout=600 \
+            "https://repo.huaweicloud.com/harmonyos/ohpm/5.0.3/commandline-tools-linux-x64-5.0.3.906.zip" \
             -O /tmp/hos-tools.zip
           unzip -q /tmp/hos-tools.zip -d /opt/
           rm /tmp/hos-tools.zip
