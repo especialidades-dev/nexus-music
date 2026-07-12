@@ -17,6 +17,12 @@ jobs:
       - name: Setup Harmony OS Flutter SDK
         run: |
           git clone -b 3.22.0-ohos https://gitcode.com/openharmony-sig/flutter_flutter.git /opt/flutter-ohos
+          # Pin to the exact commit that builds on this machine. The branch HEAD
+          # may advance and reintroduce the removed appContext.getOverrides() call.
+          git -C /opt/flutter-ohos checkout 2c09d22be24077bbe89b68eb6157e3c3afddda23
+          # Patch flutter-hvigor-plugin: hvigor 5.8.9 removed appContext.getOverrides()/
+          # setOverrides(), so inject the flutter overrides into oh-package.json5 instead.
+          git -C /opt/flutter-ohos apply tools/patches/flutter_ohos_hvigor_plugin.patch
           echo "/opt/flutter-ohos/bin" >> $GITHUB_PATH
 
       - name: Setup JDK 17
@@ -49,13 +55,6 @@ jobs:
           echo "NODE_HOME=/opt/command-line-tools/tool/node" >> $GITHUB_ENV
           echo "/opt/command-line-tools/bin" >> $GITHUB_PATH
           echo "/opt/command-line-tools/tool/node/bin" >> $GITHUB_PATH
-
-      - name: Overlay compatible hvigor 5.8.9
-        run: |
-          # command-line-tools 5.0.3.906 bundles an older hvigor that breaks
-          # flutter-ohos 3.22.0. Overlay the compatible 5.8.9 tool.
-          rm -rf /opt/command-line-tools/hvigor
-          tar xzf ohos/third_party/hvigor-5.8.9.tar.gz -C /opt/command-line-tools/
 
       - name: Write local.properties (CI SDK paths)
         run: |
