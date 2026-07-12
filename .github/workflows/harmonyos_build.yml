@@ -89,20 +89,25 @@ jobs:
           echo "$NEXUS_EC_P12_B64" | base64 -d > ohos/signing/nexus-ec.p12
           echo "$NEXUS_PROFILE_B64" | base64 -d > "ohos/signing/Nexus Music Debug ProfileDebug.p7b"
 
-      # Prime the engine cache. The first build downloads the Flutter OHOS engine
-      # HARs; it is expected to fail at signing/ohpm, which we tolerate. The patched
-      # engine is injected afterwards and the HAP is rebuilt below.
-      - name: Prime engine cache
-        run: flutter build hap --debug --target-platform ohos-arm64 --no-pub || echo "prime build finished (engine downloaded)"
-
+      # Inject the patched engine HAR and fix the oh-package.json5 override BEFORE
+      # any build. The prime build runs ohpm install which resolves @ohos/flutter_ohos;
+      # if the override points at an invalid path it falls back to the OHPM registry
+      # (a newer, API20 incompatible build that fails ArkTS compile). We must therefore
+      # place the compatible HAR and rewrite the override ahead of the first install.
       - name: Inject patched engine HAR + point override at CI engine
         run: |
           ENGINE=/opt/flutter-ohos/bin/cache/artifacts/engine/ohos-arm64
           mkdir -p "$ENGINE"
           cp ohos/third_party/flutter_embedding_debug_patched.har "$ENGINE/flutter_embedding_debug_patched.har"
+          cp ohos/third_party/flutter_embedding_debug_patched.har "$ENGINE/flutter_embedding_debug.har"
           cp ohos/third_party/arm64_v8a_debug.har "$ENGINE/arm64_v8a_debug.har"
           sed -i "s#/home/lex/ohos-sdk/flutter_ohos/bin/cache/artifacts/engine/ohos-arm64#$ENGINE#g; s#flutter_embedding_debug.har#flutter_embedding_debug_patched.har#g" ohos/oh-package.json5
           rm -rf ohos/oh_modules/.ohpm/@ohos+flutter_ohos@*
+
+      # Prime the engine cache. The first build downloads the remaining Flutter OHOS
+      # engine pieces; it is expected to fail at signing/ohpm, which we tolerate.
+      - name: Prime engine cache
+        run: flutter build hap --debug --target-platform ohos-arm64 --no-pub || echo "prime build finished (engine downloaded)"
 
       - name: Build Harmony OS HAP (patched, unsigned)
         run: flutter build hap --debug --target-platform ohos-arm64 --no-pub || echo "SignHap skipped (signing done manually next)"
