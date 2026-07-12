@@ -1,19 +1,23 @@
-import { FlutterView } from '@ohos/flutter_ohos';
+import { FlutterPage } from '@ohos/flutter_ohos'
+import common from '@ohos.app.ability.common';
 
-@Entry
+let storage = LocalStorage.getShared()
+const EVENT_BACK_PRESS = 'EVENT_BACK_PRESS'
+
+@Entry(storage)
 @Component
 struct Index {
-  @State message: string = 'Nexus Music';
+  private context = getContext(this) as common.UIAbilityContext
+  @LocalStorageLink('viewId') viewId: string = "";
 
   build() {
     Column() {
-      FlutterView({
-        width: '100%',
-        height: '100%'
-      })
+      FlutterPage({ viewId: this.viewId })
     }
-    .width('100%')
-    .height('100%')
-    .backgroundColor('#191622')
+  }
+
+  onBackPress(): boolean {
+    this.context.eventHub.emit(EVENT_BACK_PRESS)
+    return true
   }
 }

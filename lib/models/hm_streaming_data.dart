@@ -17,7 +17,11 @@ class HMStreamingData {
     qualityIndex = index;
   }
 
-  Audio? get audio => qualityIndex == 0 ? lowQualityAudio : highQualityAudio;
+  Audio? get audio {
+    final preferred = qualityIndex == 0 ? lowQualityAudio : highQualityAudio;
+    if (preferred != null) return preferred;
+    return qualityIndex == 0 ? highQualityAudio : lowQualityAudio;
+  }
 
   factory HMStreamingData.fromJson(json) {
     if(!json['playable']) {
@@ -26,8 +30,12 @@ class HMStreamingData {
         statusMSG: json['statusMSG'],
       );
     }
-    final lowQualityAudio = Audio.fromJson(json['lowQualityAudio']);
-    final highQualityAudio = Audio.fromJson(json['highQualityAudio']);
+    final lowQualityAudio = json['lowQualityAudio'] != null
+        ? Audio.fromJson(json['lowQualityAudio'])
+        : null;
+    final highQualityAudio = json['highQualityAudio'] != null
+        ? Audio.fromJson(json['highQualityAudio'])
+        : null;
     return HMStreamingData(
         playable: json['playable'],
         statusMSG: json['statusMSG'],

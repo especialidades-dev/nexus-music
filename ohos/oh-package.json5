@@ -1,7 +1,12 @@
 {
+  "modelVersion": "5.0.0",
   "name": "nexus-music",
   "version": "1.0.0",
   "description": "Nexus Music - Cross-platform music streaming",
   "main": "",
-  "dependencies": {}
+  "dependencies": {},
+  "overrides": {
+    "@ohos/flutter_ohos": "file:/home/lex/ohos-sdk/flutter_ohos/bin/cache/artifacts/engine/ohos-arm64/flutter_embedding_debug.har",
+    "flutter_native_arm64_v8a": "file:/home/lex/ohos-sdk/flutter_ohos/bin/cache/artifacts/engine/ohos-arm64/arm64_v8a_debug.har"
+  }
 }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'search_item.dart';
 import '/ui/screens/Search/search_screen_controller.dart';
@@ -15,12 +14,7 @@ class DesktopSearchBar extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Shortcuts(
-          shortcuts: {
-            LogicalKeySet(LogicalKeyboardKey.space):
-                const DoNothingAndStopPropagationTextIntent()
-          },
-          child: SearchBar(
+        SearchBar(
             controller: searchScreenController.textInputController,
             onTapOutside: (event) {},
             onChanged: searchScreenController.onChanged,
@@ -59,7 +53,6 @@ class DesktopSearchBar extends StatelessWidget {
             padding: const WidgetStatePropertyAll<EdgeInsetsGeometry>(
                 EdgeInsets.only(left: 15, right: 15)),
           ),
-        ),
         Padding(
             padding: const EdgeInsets.only(top: 10.0),
             child: Container(

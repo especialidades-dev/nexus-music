@@ -1,0 +1,146 @@
+--- a/flutter_embedding_debug.har:TextInputPlugin.ets (original)
++++ b/flutter_embedding_debug.har:TextInputPlugin.ets (patched)
+@@ -53,6 +53,7 @@
+   }
+ 
+   didChangeEditingState(textChanged: boolean, selectionChanged: boolean, composingRegionChanged: boolean): void {
++    Log.i(TextInputPlugin.TAG, "[OHOS_INPUT] didChangeEditingState textChanged=" + textChanged + " selChanged=" + selectionChanged + " composingChanged=" + composingRegionChanged);
+     let editable = this.mTextInputHandler.mEditable;
+     let inputTarget = this.mTextInputHandler.inputTarget;
+     let configuration = this.mTextInputHandler.configuration;
+@@ -96,6 +97,8 @@
+   private mRestartInputPending: boolean = false;
+   private plugin: EditingStateWatcher | Any;
+   private imcFlag: boolean = false;
++  private listenRetryTimer: number = 0;
++  private listenRetryCount: number = 0;
+   private keyboardStatus: inputMethod.KeyboardStatus = inputMethod.KeyboardStatus.HIDE;
+   private inputAttribute: inputMethod.InputAttribute =
+     { textInputType: inputMethod.TextInputType.TEXT, enterKeyType: inputMethod.EnterKeyType.NONE };
+@@ -304,11 +307,14 @@
+       const targetBundleName = bundleInfo?.name;
+       const currentProcess = currentInfo.find(info => info.bundleNames?.includes(targetBundleName));
+       //STATE_FOREGROUND 代表进程处于前台，界面获焦并显示时状态为STATE_ACTIVE，参考：https://developer.huawei.com/consumer/cn/doc/harmonyos-references/js-apis-app-ability-appmanager#processstate10
+-      if (
+-        currentProcess &&
+-        (currentProcess.state === appManager.ProcessState.STATE_FOREGROUND ||
+-          currentProcess.state === appManager.ProcessState.STATE_BACKGROUND)
+-      ) {
++      Log.i(TextInputMethodHandlerImpl.TAG,
++        "[OHOS_INPUT] detachIfBackground state=" + (currentProcess ? currentProcess.state : "unknown"));
++      // Only detach the IME client when the app is genuinely in the background.
++      // Detaching on STATE_FOREGROUND broke text input: when the app is in the
++      // foreground/active and the user taps a text field, detachIfBackground() returned
++      // true, called hideTextInput() and left the client detached, so subscribing to
++      // 'insertText' failed with code 12800009 ("input method client detached").
++      if (currentProcess && currentProcess.state === appManager.ProcessState.STATE_BACKGROUND) {
+           await this.inputMethodController.hideTextInput();
+           return true;
+         }
+@@ -456,11 +462,13 @@
+   }
+ 
+   listenKeyBoardEvent(): void {
++    Log.i(TextInputMethodHandlerImpl.TAG, "[OHOS_INPUT] listenKeyBoardEvent() called, imcFlag=" + this.imcFlag + ", config=" + JSON.stringify(this.configuration?.inputType));
+     try {
+       this.inputMethodController.on('insertText', this.insertTextCallback);
+     } catch (err) {
+       Log.e(TextInputMethodHandlerImpl.TAG, "Failed to subscribe insertText:" + JSON.stringify(err));
+-      this.cancelListenKeyBoardEvent();
++      // The IME client is not attached yet (race on first attach). Retry shortly.
++      this.scheduleListenKeyBoardRetry();
+       return;
+     }
+ 
+@@ -548,15 +556,40 @@
+       return;
+     }
+ 
+-    Log.d(TextInputMethodHandlerImpl.TAG, "listenKeyBoardEvent success");
++    Log.i(TextInputMethodHandlerImpl.TAG, "[OHOS_INPUT] listenKeyBoardEvent success, imcFlag=" + this.imcFlag);
+     this.imcFlag = true;
++    this.listenRetryCount = 0;
++    this.listenRetryTimer = 0;
++  }
++
++  private scheduleListenKeyBoardRetry(): void {
++    if (this.listenRetryTimer !== 0) {
++      return;
++    }
++    this.listenRetryCount++;
++    if (this.listenRetryCount > 30) {
++      Log.e(TextInputMethodHandlerImpl.TAG, "[OHOS_INPUT] listenKeyBoardEvent retry giving up");
++      this.listenRetryCount = 0;
++      return;
++    }
++    this.listenRetryTimer = setTimeout(() => {
++      this.listenRetryTimer = 0;
++      if (this.imcFlag || !this.keyboardFocusState) {
++        this.listenRetryCount = 0;
++        return;
++      }
++      Log.i(TextInputMethodHandlerImpl.TAG, "[OHOS_INPUT] listenKeyBoardEvent retry #" + this.listenRetryCount);
++      this.listenKeyBoardEvent();
++    }, 150);
+   }
+ 
+   private insertTextCallback = (text: string) => {
+-    Log.d(TextInputMethodHandlerImpl.TAG, "insertText: " + text);
++    Log.i(TextInputMethodHandlerImpl.TAG, "[OHOS_INPUT] insertText: '" + text + "'");
++    Log.i(TextInputMethodHandlerImpl.TAG, "[OHOS_INPUT] insertText cached, stringCache='" + this.mEditable.getStringCache() + "', selStart=" + this.mEditable.getSelectionStart() + ", selEnd=" + this.mEditable.getSelectionEnd());
+     this.mEditable.handleInsertTextEvent(text);
+     this.inputMethodController.changeSelection(this.mEditable.getStringCache(), this.mEditable.getSelectionStart(),
+       this.mEditable.getSelectionEnd());
++    Log.i(TextInputMethodHandlerImpl.TAG, "[OHOS_INPUT] changeSelection called");
+   }
+ 
+   private deleteLeftCallback = (length: number) => {
+@@ -580,22 +613,33 @@
+   }
+ 
+   private sendKeyboardStatusCallback = (state: inputMethod.KeyboardStatus) => {
+-    // api20开始，外接键盘状态下，点击输入框会拉起软键盘，此时要阻止onConnectionClosed，否则输入框会无法输入
++    // Only close connection on HIDE if keyboard was actively shown (keyboardFocusState=true)
++    // and no physical keyboard is connected (to prevent unwanted keyboard dismissal)
++    if (state !== inputMethod.KeyboardStatus.HIDE) {
++      this.keyboardStatus = state;
++      return;
++    }
++    if (!this.keyboardFocusState) {
++      Log.d(TextInputMethodHandlerImpl.TAG, "Ignoring HIDE, keyboard was not actively shown");
++      return;
++    }
+     try {
+-      let isPhysicalKeyboard = false;
+       inputDevice.getDeviceList((Error: Error, ids: Array<number>) => {
++        let isPhysicalKeyboard = false;
+         for (let i = 0; i < ids.length; i++) {
+           const type = inputDevice.getKeyboardTypeSync(ids[i]);
+           if (type === inputDevice.KeyboardType.ALPHABETIC_KEYBOARD ||
+             type === inputDevice.KeyboardType.DIGITAL_KEYBOARD) {
+             isPhysicalKeyboard = true;
+-            return;
++            break;
+           }
+         }
+-        this.keyboardStatus = state;
+-        if (state === inputMethod.KeyboardStatus.HIDE) {
+-          this.plugin.textInputChannel.onConnectionClosed(this.inputTarget.id);
++        if (isPhysicalKeyboard) {
++          Log.d(TextInputMethodHandlerImpl.TAG, "Physical keyboard detected, preventing onConnectionClosed");
++          return;
+         }
++        this.keyboardStatus = state;
++        this.plugin.textInputChannel.onConnectionClosed(this.inputTarget.id);
+       })
+     } catch (error) {
+       Log.e(TextInputMethodHandlerImpl.TAG,
+@@ -666,6 +710,8 @@
+     this.inputMethodController?.off('getRightTextOfCursor', this.getRightTextOfCursorCallback);
+     this.inputMethodController?.off('getTextIndexAtCursor', this.getTextIndexAtCursorCallback);
+     this.imcFlag = false;
++    this.listenRetryTimer = 0;
++    this.listenRetryCount = 0;
+   }
+ 
+   public clearTextInputClient(): void {
