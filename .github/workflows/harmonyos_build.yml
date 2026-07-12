@@ -89,20 +89,31 @@ jobs:
           echo "$NEXUS_EC_P12_B64" | base64 -d > ohos/signing/nexus-ec.p12
           echo "$NEXUS_PROFILE_B64" | base64 -d > "ohos/signing/Nexus Music Debug ProfileDebug.p7b"
 
-      # Inject the patched engine HAR and fix the oh-package.json5 override BEFORE
-      # any build. The prime build runs ohpm install which resolves @ohos/flutter_ohos;
-      # if the override points at an invalid path it falls back to the OHPM registry
-      # (a newer, API20 incompatible build that fails ArkTS compile). We must therefore
-      # place the compatible HAR and rewrite the override ahead of the first install.
-      - name: Inject patched engine HAR + point override at CI engine
+      # Pin @ohos/flutter_ohos to the committed, API12-compatible patched engine HAR
+      # BEFORE any build. The entry module declares this dependency with an EMPTY
+      # version; without a lockfile CI resolves it to the OHPM registry (a newer,
+      # API20-incompatible build that fails ArkTS compile). ohpm `overrides` do NOT
+      # redirect an empty-version DIRECT dependency, so we must set the dependency
+      # itself to `file:` pointing at the patched HAR. We reference the repo copy
+      # (never deleted by the flutter engine download) so the patched source is what
+      # gets compiled/bundled into the HAP.
+      - name: Pin @ohos/flutter_ohos to patched engine HAR
+        env:
+          HAR: ${{ github.workspace }}/ohos/third_party/flutter_embedding_debug_patched.har
+          NATIVE: ${{ github.workspace }}/ohos/third_party/arm64_v8a_debug.har
+          ENGINE: /opt/flutter-ohos/bin/cache/artifacts/engine/ohos-arm64
         run: |
-          ENGINE=/opt/flutter-ohos/bin/cache/artifacts/engine/ohos-arm64
+          sed -i "s#\"@ohos/flutter_ohos\": \"\"#\"@ohos/flutter_ohos\": \"file:${HAR}\"#" ohos/entry/oh-package.json5
+          sed -i "s#\"flutter_native_arm64_v8a\": \"\"#\"flutter_native_arm64_v8a\": \"file:${NATIVE}\"#" ohos/entry/oh-package.json5
+          sed -i "s#/home/lex/ohos-sdk/flutter_ohos/bin/cache/artifacts/engine/ohos-arm64/flutter_embedding_debug.har#${HAR}#g" ohos/oh-package.json5
+          # Also overwrite the engine dir's embedding HAR with the patched one in case
+          # the flutter build harness consumes it directly.
           mkdir -p "$ENGINE"
-          cp ohos/third_party/flutter_embedding_debug_patched.har "$ENGINE/flutter_embedding_debug_patched.har"
-          cp ohos/third_party/flutter_embedding_debug_patched.har "$ENGINE/flutter_embedding_debug.har"
-          cp ohos/third_party/arm64_v8a_debug.har "$ENGINE/arm64_v8a_debug.har"
-          sed -i "s#/home/lex/ohos-sdk/flutter_ohos/bin/cache/artifacts/engine/ohos-arm64#$ENGINE#g; s#flutter_embedding_debug.har#flutter_embedding_debug_patched.har#g" ohos/oh-package.json5
-          rm -rf ohos/oh_modules/.ohpm/@ohos+flutter_ohos@*
+          cp "$HAR" "$ENGINE/flutter_embedding_debug.har"
+          cp "$HAR" "$ENGINE/flutter_embedding_debug_patched.har"
+          cp "$NATIVE" "$ENGINE/arm64_v8a_debug.har"
+          # Drop any registry-resolved install/lock so the build re-resolves to the HAR.
+          rm -rf ohos/oh_modules/.ohpm/@ohos+flutter_ohos@* ohos/entry/oh-package-lock.json5
 
       # Prime the engine cache. The first build downloads the remaining Flutter OHOS
       # engine pieces; it is expected to fail at signing/ohpm, which we tolerate.
