@@ -22,7 +22,7 @@ jobs:
           git -C /opt/flutter-ohos checkout 2c09d22be24077bbe89b68eb6157e3c3afddda23
           # Patch flutter-hvigor-plugin: hvigor 5.8.9 removed appContext.getOverrides()/
           # setOverrides(), so inject the flutter overrides into oh-package.json5 instead.
-          git -C /opt/flutter-ohos apply tools/patches/flutter_ohos_hvigor_plugin.patch
+          git -C /opt/flutter-ohos apply "$GITHUB_WORKSPACE/tools/patches/flutter_ohos_hvigor_plugin.patch"
           echo "/opt/flutter-ohos/bin" >> $GITHUB_PATH
 
       - name: Setup JDK 17
