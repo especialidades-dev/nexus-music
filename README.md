@@ -30,7 +30,7 @@ Aplicación multiplataforma para streaming de música construida con Flutter.
 | Plataforma | Estado |
 |-----------|--------|
 | Linux (Debian/Ubuntu) | ✅ |
-| Harmony OS 6.1.x | Flutter OHOS port -sin probar aún |
+| Harmony OS 6.1.x | ✅ Flutter OHOS port |
 | Windows | No planeado |
 | Android | ✅| 
 
@@ -51,22 +51,6 @@ En ningún caso el autor de este software será responsable de daños especiales
 
 Este software se distribuye "tal cual", sin garantía ni responsabilidad alguna.
 
-## Compilación
-
-### Linux (Debian)
-
-```bash
-sudo apt-get install libmpv-dev mpv libayatana-appindicator3-dev ninja-build libgtk-3-dev
-dart pub global activate flutter_distributor
-flutter_distributor package --platform linux --targets deb
-```
-
-### Harmony OS 6.1.x
-
-```bash
-# Usar Flutter SDK con soporte OHOS
-flutter config --enable-ohos
-flutter build hap --debug --target-platform ohos-arm64
 ```
 
 ## Créditos
