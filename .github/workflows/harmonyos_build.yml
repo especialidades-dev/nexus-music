@@ -33,12 +33,11 @@ jobs:
 
       - name: Setup Harmony OS SDK
         run: |
-          # Official HarmonyOS command-line-tools (matches the dev machine's SDK:
-          # this exact build bundles hvigor 5.8.9, required by flutter-ohos 3.22.0).
-          # The HuggingFace mirror's 5.0.3.906 is an older build with hvigor 5.0.x
-          # and fails with "appContext.getOverrides is not a function".
+          # Use command-line-tools 5.0.5.310. The 5.0.3.906 build on huaweicloud was
+          # re-published without the ArkTS compiler globals (e.g. AxisEvent) that the
+          # flutter-ohos 3.22.0 engine source requires, causing ArkTS compile errors.
           wget -q --timeout=600 \
-            "https://repo.huaweicloud.com/harmonyos/ohpm/5.0.3/commandline-tools-linux-x64-5.0.3.906.zip" \
+            "https://repo.huaweicloud.com/harmonyos/ohpm/5.0.5/commandline-tools-linux-x64-5.0.5.310.zip" \
             -O /tmp/hos-tools.zip
           unzip -q /tmp/hos-tools.zip -d /opt/
           rm /tmp/hos-tools.zip
