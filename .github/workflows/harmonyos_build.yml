@@ -134,6 +134,7 @@ jobs:
           cp "$HAR" "$ENGINE/flutter_embedding_debug_patched.har"
           cp "$NATIVE" "$ENGINE/arm64_v8a_debug.har"
           rm -rf ohos/oh_modules/.ohpm/@ohos+flutter_ohos@*
+          sed -i 's/  "dependencies": {[^}]*}/  "dependencies": {}/' ohos/entry/oh-package.json5
 
       - name: Build Harmony OS HAP (patched, unsigned)
         run: flutter build hap --debug --target-platform ohos-arm64
@@ -163,4 +164,3 @@ jobs:
         with:
           name: nexus-music-harmonyos-hap
           path: nexus-music-harmonyos.hap
-
