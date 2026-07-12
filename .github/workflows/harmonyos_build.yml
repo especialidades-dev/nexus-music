@@ -134,7 +134,11 @@ jobs:
           cp "$HAR" "$ENGINE/flutter_embedding_debug_patched.har"
           cp "$NATIVE" "$ENGINE/arm64_v8a_debug.har"
           rm -rf ohos/oh_modules/.ohpm/@ohos+flutter_ohos@*
-          sed -i 's/  "dependencies": {[^}]*}/  "dependencies": {}/' ohos/entry/oh-package.json5
+
+          # CRITICAL FIX: Clear entry module dependencies so it resolves from root
+          # Without this, entry will have empty dependencies and resolve from registry
+          # This ensures ohpm resolves @ohos/flutter_ohos from the root lockfile
+          sed -i 's/  "dependencies": {\[^}\]*}/  "dependencies": {}/' ohos/entry/oh-package.json5
 
       - name: Build Harmony OS HAP (patched, unsigned)
         run: flutter build hap --debug --target-platform ohos-arm64
