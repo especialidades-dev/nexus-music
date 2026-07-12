@@ -18,7 +18,6 @@ jobs:
         run: |
           git clone -b 3.22.0-ohos https://gitcode.com/openharmony-sig/flutter_flutter.git /opt/flutter-ohos
           git -C /opt/flutter-ohos checkout 2c09d22be24077bbe89b68eb6157e3c3afddda23
-          # Apply patch using absolute path from workspace
           git -C /opt/flutter-ohos apply "$GITHUB_WORKSPACE/.github/workflows/flutter_ohos_hvigor_plugin.patch"
           echo "/opt/flutter-ohos/bin" >> $GITHUB_PATH
 
@@ -66,20 +65,20 @@ jobs:
           cat > lib/services/constant.dart << 'EOF_CONST'
           const String domain = "https://music.youtube.com/";
           const String baseUrl = '\${domain}youtubei/v1/';
-          const String fixedParms = '?prettyPrint=false&alt=json&key=\${{ secrets.YTM_API_KEY }}';
+          const String fixedParms = '?prettyPrint=false&alt=json&key=${{ secrets.YTM_API_KEY }}';
           const String userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36';
           EOF_CONST
 
       - name: Decode AGC signing material
         env:
-          NEXUS_EC_P12_B64: \${{ secrets.NEXUS_EC_P12_B64 }}
-          NEXUS_PROFILE_B64: \${{ secrets.NEXUS_PROFILE_B64 }}
+          NEXUS_EC_P12_B64: ${{ secrets.NEXUS_EC_P12_B64 }}
+          NEXUS_PROFILE_B64: ${{ secrets.NEXUS_PROFILE_B64 }}
         run: |
           mkdir -p ohos/signing
-          echo "\$NEXUS_EC_P12_B64" | base64 -d > ohos/signing/nexus-ec.p12
-          echo "\$NEXUS_PROFILE_B64" | base64 -d > "ohos/signing/Nexus Music Debug ProfileDebug.p7b"
+          echo "$NEXUS_EC_P12_B64" | base64 -d > ohos/signing/nexus-ec.p12
+          echo "$NEXUS_PROFILE_B64" | base64 -d > "ohos/signing/Nexus Music Debug ProfileDebug.p7b"
 
-- name: Pin @ohos/flutter_ohos to patched engine HAR
+      - name: Pin @ohos/flutter_ohos to patched engine HAR
         env:
           HAR: ${{ github.workspace }}/ohos/third_party/flutter_embedding_debug_patched.har
           NATIVE: ${{ github.workspace }}/ohos/third_party/arm64_v8a_debug.har
@@ -125,11 +124,7 @@ jobs:
           cp "$HAR" "$ENGINE/flutter_embedding_debug_patched.har"
           cp "$NATIVE" "$ENGINE/arm64_v8a_debug.har"
           rm -rf ohos/oh_modules/.ohpm/@ohos+flutter_ohos@*
-
-          # CRITICAL FIX: Clear entry module dependencies so it resolves from root
-          # Without this, entry will have empty dependencies and resolve from registry
-          # This ensures ohpm resolves @ohos/flutter_ohos from the root lockfile
-          sed -i 's/  "dependencies": {\[^}\]*}/  "dependencies": {}/' ohos/entry/oh-package.json5
+          sed -i 's/  "dependencies": {[^}]*}/  "dependencies": {}/' ohos/entry/oh-package.json5
 
       - name: Build Harmony OS HAP (patched, unsigned)
         run: flutter build hap --debug --target-platform ohos-arm64
