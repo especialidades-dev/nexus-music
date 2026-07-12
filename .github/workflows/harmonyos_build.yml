@@ -18,7 +18,8 @@ jobs:
         run: |
           git clone -b 3.22.0-ohos https://gitcode.com/openharmony-sig/flutter_flutter.git /opt/flutter-ohos
           git -C /opt/flutter-ohos checkout 2c09d22be24077bbe89b68eb6157e3c3afddda23
-          git -C /opt/flutter-ohos apply ".github/workflows/flutter_ohos_hvigor_plugin.patch"
+          # Apply patch using absolute path from workspace
+          git -C /opt/flutter-ohos apply "$GITHUB_WORKSPACE/.github/workflows/flutter_ohos_hvigor_plugin.patch"
           echo "/opt/flutter-ohos/bin" >> $GITHUB_PATH
 
       - name: Setup JDK 17
@@ -78,17 +79,7 @@ jobs:
           echo "\$NEXUS_EC_P12_B64" | base64 -d > ohos/signing/nexus-ec.p12
           echo "\$NEXUS_PROFILE_B64" | base64 -d > "ohos/signing/Nexus Music Debug ProfileDebug.p7b"
 
-      - name: Setup patches directory
-        run: |
-          mkdir -p ".github/workflows"
-
-      - name: Copy flutter_ohos_hvigor_plugin.patch
-        env:
-          PATCH_URL: "gh raw.githubusercontent.com/openhands-ai/openhands/main/support/flutter_ohos_hvigor_plugin.patch"
-        run: |
-          curl -L "\$PATCH_URL" -o ".github/workflows/flutter_ohos_hvigor_plugin.patch"
-
-      - name: Pin @ohos/flutter_ohos to patched engine HAR
+- name: Pin @ohos/flutter_ohos to patched engine HAR
         env:
           HAR: ${{ github.workspace }}/ohos/third_party/flutter_embedding_debug_patched.har
           NATIVE: ${{ github.workspace }}/ohos/third_party/arm64_v8a_debug.har
