@@ -2,7 +2,7 @@ diff --git a/packages/flutter_tools/hvigor/src/plugin/flutter-hvigor-plugin.ts b
 index 0000000..1111111 100644
 --- a/packages/flutter_tools/hvigor/src/plugin/flutter-hvigor-plugin.ts
 +++ b/packages/flutter_tools/hvigor/src/plugin/flutter-hvigor-plugin.ts
-@@ -1,4 +1,20 @@
+@@ -1,3 +1,15 @@
 +// Patch: hvigor 5.8.9 removed appContext.getOverrides()/setOverrides()
 +// Workaround: inject overrides directly into oh-package.json5
 +import * as fs from 'fs';
@@ -15,9 +15,8 @@ index 0000000..1111111 100644
 +    const content = fs.readFileSync(ohPackagePath, 'utf8');
 +    if (!content.includes('flutter_ohos')) {
 +      const overrides = `  "overrides": {\n    "@ohos/flutter_ohos": "file:third_party/flutter_embedding_debug_patched.har",\n    "flutter_native_arm64_v8a": "file:third_party/arm64_v8a_debug.har"\n  },`;
-+      const newContent = content.replace('"dependencies":', overrides + '\n  "dependencies":');
-+      fs.writeFileSync(ohPackagePath, newContent);
-+    }
++    const newContent = content.replace('"dependencies":', overrides + '\n  "dependencies":');
++    fs.writeFileSync(ohPackagePath, newContent);
 +  }
 +}
 +
@@ -25,4 +24,3 @@ index 0000000..1111111 100644
    apply(appContext: ProjectContext) {
      // Apply the override injection
      injectOverrides(appContext);
-     
