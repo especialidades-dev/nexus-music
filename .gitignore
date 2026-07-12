@@ -81,6 +81,7 @@ android/app/.cxx/Debug/*
 /android/app/.cxx
 
 # Harmony OS generated artifacts and secrets (do NOT commit)
+*.hap
 ohos/oh_modules/
 ohos/entry/oh_modules/
 ohos/node_modules/
