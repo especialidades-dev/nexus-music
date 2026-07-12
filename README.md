@@ -51,8 +51,6 @@ En ningún caso el autor de este software será responsable de daños especiales
 
 Este software se distribuye "tal cual", sin garantía ni responsabilidad alguna.
 
-```
-
 ## Créditos
 
 - [anandnet/Harmony-Music](https://github.com/anandnet/Harmony-Music) - Proyecto original
