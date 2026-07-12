@@ -17,12 +17,10 @@ jobs:
       - name: Setup Harmony OS Flutter SDK
         run: |
           git clone -b 3.22.0-ohos https://gitcode.com/openharmony-sig/flutter_flutter.git /opt/flutter-ohos
-          # Pin to the exact commit that builds on this machine. The branch HEAD
-          # may advance and reintroduce the removed appContext.getOverrides() call.
           git -C /opt/flutter-ohos checkout 2c09d22be24077bbe89b68eb6157e3c3afddda23
-          # Patch flutter-hvigor-plugin: hvigor 5.8.9 removed appContext.getOverrides()/
-          # setOverrides(), so inject the flutter overrides into oh-package.json5 instead.
-          git -C /opt/flutter-ohos apply "$GITHUB_WORKSPACE/tools/patches/flutter_ohos_hvigor_plugin.patch"
+          # Remove getOverrides/setOverrides calls (removed in hvigor 5.8.9+)
+          sed -i '/appContext\.getOverrides()/d' /opt/flutter-ohos/packages/flutter_tools/hvigor/src/plugin/flutter-hvigor-plugin.ts
+          sed -i '/appContext\.setOverrides(/d' /opt/flutter-ohos/packages/flutter_tools/hvigor/src/plugin/flutter-hvigor-plugin.ts
           echo "/opt/flutter-ohos/bin" >> $GITHUB_PATH
 
       - name: Setup JDK 17
@@ -33,15 +31,11 @@ jobs:
 
       - name: Setup Harmony OS SDK
         run: |
-          # Use command-line-tools 5.0.5.310. The 5.0.3.906 build on huaweicloud was
-          # re-published without the ArkTS compiler globals (e.g. AxisEvent) that the
-          # flutter-ohos 3.22.0 engine source requires, causing ArkTS compile errors.
           wget -q --timeout=600 \
             "https://repo.huaweicloud.com/harmonyos/ohpm/5.0.5/commandline-tools-linux-x64-5.0.5.310.zip" \
             -O /tmp/hos-tools.zip
           unzip -q /tmp/hos-tools.zip -d /opt/
           rm /tmp/hos-tools.zip
-          # Find the extracted directory (name may vary by version)
           SDK_DIR=$(ls -d /opt/command-line-tools* 2>/dev/null | head -1)
           if [ -z "$SDK_DIR" ]; then
             SDK_DIR=$(ls -d /opt/commandline-tools* /opt/hos* /opt/ohos* 2>/dev/null | head -1)
@@ -57,28 +51,25 @@ jobs:
 
       - name: Write local.properties (CI SDK paths)
         run: |
-          cat > ohos/local.properties << 'EOF'
+          cat > ohos/local.properties << 'EOF_LOCAL'
           hwsdk.dir=/opt/command-line-tools/sdk
           nodejs.dir=/opt/command-line-tools/tool/node
           flutter.sdk=/opt/flutter-ohos
-          EOF
+          EOF_LOCAL
 
       - name: Configure Flutter for Harmony OS
         run: |
           flutter config --enable-ohos
-          # pub get resolves deps and generates pubspec.lock.
-          # Plugin injection crashes on OHOS 3.22.0 (null cast bug in AppInfo.getAppInfo).
-          # We tolerate the crash to retain the lock file, then build with --no-pub.
           flutter pub get 2>&1 || echo "pub get crashed (expected - OHOS plugin injection bug), lock file generated"
 
       - name: Create constant.dart
         run: |
-          cat > lib/services/constant.dart << 'EOF'
+          cat > lib/services/constant.dart << 'EOF_CONST'
           const String domain = "https://music.youtube.com/";
           const String baseUrl = '${domain}youtubei/v1/';
           const String fixedParms = '?prettyPrint=false&alt=json&key=${{ secrets.YTM_API_KEY }}';
           const String userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36';
-          EOF
+          EOF_CONST
 
       - name: Decode AGC signing material
         env:
@@ -89,27 +80,17 @@ jobs:
           echo "$NEXUS_EC_P12_B64" | base64 -d > ohos/signing/nexus-ec.p12
           echo "$NEXUS_PROFILE_B64" | base64 -d > "ohos/signing/Nexus Music Debug ProfileDebug.p7b"
 
-      # Pin @ohos/flutter_ohos to the committed, API12-compatible patched engine HAR
-      # BEFORE any build. The entry module declares this dependency with an EMPTY
-      # version; without a pinned lockfile CI resolves it to the OHPM registry (a
-      # newer, API20-incompatible build that fails ArkTS compile). ohpm only honors
-      # PROJECT-LEVEL lockfiles. The root module has its own lockfile at ohos/oh-
-      # package-lock.json5 (gitignored), so we regenerate it here pointing at the
-      # third_party HAR. We then delete the entry module's dependencies to avoid
-      # redundant overrides and ensure the root lockfile is the single source of truth.
       - name: Pin @ohos/flutter_ohos to patched engine HAR
         env:
           HAR: ${{ github.workspace }}/ohos/third_party/flutter_embedding_debug_patched.har
           NATIVE: ${{ github.workspace }}/ohos/third_party/arm64_v8a_debug.har
           ENGINE: /opt/flutter-ohos/bin/cache/artifacts/engine/ohos-arm64
         run: |
-          # Calculate relative path from the root lockfile to the committed HARs
-          python3 - <<'PY'
+          python3 <<'PY'
           import json, os
           project = os.getcwd()
           har_abs = os.path.abspath(os.environ['HAR'])
           native_abs = os.path.abspath(os.environ['NATIVE'])
-          # Relative from project root to HARs
           har_rel = os.path.relpath(har_abs, project)
           native_rel = os.path.relpath(native_abs, project)
           lock = {
@@ -140,24 +121,15 @@ jobs:
             json.dump(lock, f, indent=2)
           print(f"wrote root lockfile {root_lock} with", har_rel, native_rel)
           PY
-          # Overwrite the engine dir's embedding HAR with the patched one in case
-          # the flutter build harness consumes it directly.
           mkdir -p "$ENGINE"
           cp "$HAR" "$ENGINE/flutter_embedding_debug.har"
           cp "$HAR" "$ENGINE/flutter_embedding_debug_patched.har"
           cp "$NATIVE" "$ENGINE/arm64_v8a_debug.har"
-          # Drop any registry-resolved install and remove entry dependencies.
-          rm -rf ohos/oh_modules/.ohpm/@ohos+flutter_ohos@
-          # Clear entry module dependencies so the root lockfile is the only source
+          rm -rf ohos/oh_modules/.ohpm/@ohos+flutter_ohos@*
           sed -i 's/  "dependencies": {[^}]*}/  "dependencies": {}/' ohos/entry/oh-package.json5
 
-      # Prime the engine cache. The first build downloads the remaining Flutter OHOS
-      # engine pieces; it is expected to fail at signing/ohpm, which we tolerate.
-      - name: Prime engine cache
-        run: flutter build hap --debug --target-platform ohos-arm64 --no-pub || echo "prime build finished (engine downloaded)"
-
       - name: Build Harmony OS HAP (patched, unsigned)
-        run: flutter build hap --debug --target-platform ohos-arm64 --no-pub || echo "SignHap skipped (signing done manually next)"
+        run: flutter build hap --debug --target-platform ohos-arm64
 
       - name: Verify unsigned HAP exists
         run: test -f ohos/entry/build/default/outputs/default/entry-default-unsigned.hap || (echo "Unsigned HAP missing - build failed" && exit 1)
