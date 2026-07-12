@@ -1,44 +1,96 @@
-import { window } from '@kit.ArkUI';
-import { avPlayer } from '@kit.MediaKit';
-import { audio } from '@kit.AudioKit';
+import media from '@ohos.multimedia.media';
+import { MethodChannel } from '@ohos/flutter_ohos';
 
 class AudioBridge {
-  private player: avPlayer.AVPlayer | null = null;
+  private player: media.AVPlayer | null = null;
   private isInitialized: boolean = false;
+  private callbackChannel: MethodChannel | null = null;
+  private lastUrl: string | null = null;
+  private isPlaying: boolean = false;
 
   constructor() {
     this.initPlayer();
   }
 
-  private async initPlayer(): Promise<void> {
+  setCallbackChannel(channel: MethodChannel): void {
+    this.callbackChannel = channel;
+  }
+
+  private notify(method: string, args: Object | null): void {
     try {
-      const audioManager = audio.getAudioManager();
-      const audioRendererInfo: audio.AudioRendererInfo = {
-        usage: audio.AudioUsageType.USAGE_MEDIA,
-        rendererFlags: 0
-      };
-      this.player = await avPlayer.createAVPlayer();
-      this.player.on('stateChange', (state: avPlayer.AVPlayerState) => {
-        console.info(`NexusMusic AVPlayer state: ${state}`);
-      });
-      this.isInitialized = true;
-    } catch (err) {
-      console.error(`NexusMusic initPlayer error: ${err.message}`);
+      this.callbackChannel?.invokeMethod(method, args);
+    } catch (e) {
+      console.error(`NexusMusic notify error: ${JSON.stringify(e)}`);
     }
   }
 
-  async play(url: string): Promise<void> {
+  private async initPlayer(): Promise<void> {
+    try {
+      this.player = await media.createAVPlayer();
+      this.player.on('stateChange', (state: media.AVPlayerState) => {
+        this.onStateChange(state);
+      });
+      this.player.on('timeUpdate', (time: number) => {
+        if (this.isPlaying) {
+          this.notify('onPositionChanged', time);
+        }
+      });
+      this.isInitialized = true;
+    } catch (err) {
+      console.error(`NexusMusic initPlayer error: ${JSON.stringify(err)}`);
+    }
+  }
+
+  private onStateChange(state: media.AVPlayerState): void {
+    console.info(`NexusMusic AVPlayer state: ${state}`);
+    if (state === 'playing') {
+      this.isPlaying = true;
+      this.notify('onPlayerStateChanged', true);
+    } else if (state === 'paused') {
+      this.isPlaying = false;
+      this.notify('onPlayerStateChanged', false);
+    } else if (state === 'completed') {
+      this.isPlaying = false;
+      this.notify('onPlayerStateChanged', false);
+      this.notify('onCompleted', null);
+    } else if (state === 'prepared') {
+      if (this.player) {
+        this.notify('onDurationChanged', this.player.duration);
+      }
+    } else if (state === 'error') {
+      this.isPlaying = false;
+      this.notify('onPlayerStateChanged', false);
+    }
+  }
+
+  private async delay(ms: number): Promise<void> {
+    return new Promise<void>(resolve => setTimeout(resolve, ms));
+  }
+
+  async play(url?: string): Promise<void> {
     if (!this.player || !this.isInitialized) {
       console.error('NexusMusic player not initialized');
       return;
     }
+    const playUrl = url ?? this.lastUrl;
+    if (!playUrl) {
+      console.error('NexusMusic play: no url');
+      return;
+    }
+    this.lastUrl = playUrl;
     try {
       await this.player.reset();
-      await this.player.setFdSrc(url);
+      // Wait for player to reach idle state before setting URL, otherwise
+      // AVPlayer throws 5400102 (operation not allowed in current state)
+      await this.delay(300);
+      (this.player as ESObject).url = playUrl;
+      await this.delay(100);
       await this.player.prepare();
+      await this.delay(100);
       await this.player.play();
     } catch (err) {
-      console.error(`NexusMusic play error: ${err.message}`);
+      console.error(`NexusMusic play error: ${JSON.stringify(err)}`);
+      this.notify('onPlayerStateChanged', false);
     }
   }
 

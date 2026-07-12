@@ -40,7 +40,7 @@ class Home extends StatelessWidget {
     }
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
+      onPopInvoked: (didPop) async {
         if (didPop) return;
         if (playerController.playerPanelController.isPanelOpen) {
           playerController.playerPanelController.close();
@@ -62,12 +62,9 @@ class Home extends StatelessWidget {
           }
         }
       },
-      child: CallbackShortcuts(
-        bindings: {
-          LogicalKeySet(LogicalKeyboardKey.space): playerController.playPause
-        },
-        child: Obx(
-          () => Scaffold(
+            child: Obx(
+        () => Scaffold(
+              
               bottomNavigationBar: settingsScreenController
                       .isBottomNavBarEnabled.isTrue
                   ? ScrollToHideWidget(
@@ -205,7 +202,6 @@ class Home extends StatelessWidget {
                         : const MiniPlayer(),
                   ))),
         ),
-      ),
     );
   }
 }

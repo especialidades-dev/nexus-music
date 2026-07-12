@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 class ModifiedTextField extends StatelessWidget {
   final TextEditingController? controller;
@@ -11,6 +10,7 @@ class ModifiedTextField extends StatelessWidget {
   final bool autofocus;
   final TextCapitalization textCapitalization;
   final TextInputAction? textInputAction;
+  final TextInputType? keyboardType;
   final void Function(String)? onSubmitted;
   final void Function(String)? onChanged;
 
@@ -25,27 +25,24 @@ class ModifiedTextField extends StatelessWidget {
       this.autofocus = false,
       this.textCapitalization = TextCapitalization.none,
       this.textInputAction,
+      this.keyboardType,
       this.onSubmitted,
       this.onChanged});
 
   @override
   Widget build(BuildContext context) {
-    return Shortcuts(
-        shortcuts: {
-          LogicalKeySet(LogicalKeyboardKey.space):
-              const DoNothingAndStopPropagationTextIntent()
-        },
-        child: TextField(
-            controller: controller,
-            cursorColor: cursorColor,
-            decoration: decoration,
-            obscureText: obscureText,
-            textAlign: textAlign,
-            textAlignVertical: textAlignVertical,
-            autofocus: autofocus,
-            onChanged: onChanged,
-            textInputAction: textInputAction,
-            onSubmitted: onSubmitted,
-            textCapitalization: textCapitalization));
+    return TextField(
+        controller: controller,
+        cursorColor: cursorColor,
+        decoration: decoration,
+        obscureText: obscureText,
+        textAlign: textAlign,
+        textAlignVertical: textAlignVertical,
+        autofocus: autofocus,
+        onChanged: onChanged,
+        textInputAction: textInputAction,
+        keyboardType: keyboardType,
+        onSubmitted: onSubmitted,
+        textCapitalization: textCapitalization);
   }
 }
