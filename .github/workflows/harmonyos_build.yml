@@ -14,32 +14,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-- name: Setup Harmony OS Flutter SDK
+      - name: Setup Harmony OS Flutter SDK
         run: |
           git clone -b 3.22.0-ohos https://gitcode.com/openharmony-sig/flutter_flutter.git /opt/flutter-ohos
           git -C /opt/flutter-ohos checkout 2c09d22be24077bbe89b68eb6157e3c3afddda23
-          # Patch flutter-hvigor-plugin.ts to remove getOverrides/setOverrides calls (removed in hvigor 5.8.9+)
-          # The plugin calls appContext.getOverrides() and appContext.setOverrides() which were removed in hvigor 5.8.9+
+          # Remove getOverrides/setOverrides calls (removed in hvigor 5.8.9+)
           sed -i '/appContext\.getOverrides()/d' /opt/flutter-ohos/packages/flutter_tools/hvigor/src/plugin/flutter-hvigor-plugin.ts
           sed -i '/appContext\.setOverrides(/d' /opt/flutter-ohos/packages/flutter_tools/hvigor/src/plugin/flutter-hvigor-plugin.ts
-          # Also inject overrides into oh-package.json5 at plugin load time
-          sed -i '/export class FlutterHvigorPlugin implements IPlugin {/a\
-      // Apply override injection\
-      injectOverrides(appContext);\
-      \
-      function injectOverrides(appContext: any) {\
-        const projectDir = appContext.projectDir || process.cwd();\
-        const ohPackagePath = path.join(projectDir, "ohos", "oh-package.json5");\
-        if (fs.existsSync(ohPackagePath)) {\
-          const content = fs.readFileSync(ohPackagePath, "utf8");\
-          if (!content.includes("flutter_ohos")) {\
-            const overrides = `  "overrides": {\n    "@ohos/flutter_ohos": "file:third_party/flutter_embedding_debug_patched.har",\n    "flutter_native_arm64_v8a": "file:third_party/arm64_v8a_debug.har"\n  },`;\
-            const newContent = content.replace(\'"dependencies":\', "overrides: " + overrides + \n  "dependencies":\');\
-            fs.writeFileSync(ohPackagePath, newContent);\
-          }\
-        }\
-      import * as fs from "fs";\
-      import * as path from "path";' /opt/flutter-ohos/packages/flutter_tools/hvigor/src/plugin/flutter-hvigor-plugin.ts
           echo "/opt/flutter-ohos/bin" >> $GITHUB_PATH
 
       - name: Setup JDK 17
@@ -85,7 +66,7 @@ jobs:
         run: |
           cat > lib/services/constant.dart << 'EOF_CONST'
           const String domain = "https://music.youtube.com/";
-          const String baseUrl = '\${domain}youtubei/v1/';
+          const String baseUrl = '${domain}youtubei/v1/';
           const String fixedParms = '?prettyPrint=false&alt=json&key=${{ secrets.YTM_API_KEY }}';
           const String userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36';
           EOF_CONST
@@ -105,7 +86,7 @@ jobs:
           NATIVE: ${{ github.workspace }}/ohos/third_party/arm64_v8a_debug.har
           ENGINE: /opt/flutter-ohos/bin/cache/artifacts/engine/ohos-arm64
         run: |
-          python3 - <<'PY'
+          python3 <<'PY'
           import json, os
           project = os.getcwd()
           har_abs = os.path.abspath(os.environ['HAR'])
