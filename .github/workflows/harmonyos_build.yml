@@ -50,6 +50,13 @@ jobs:
           echo "/opt/command-line-tools/bin" >> $GITHUB_PATH
           echo "/opt/command-line-tools/tool/node/bin" >> $GITHUB_PATH
 
+      - name: Overlay compatible hvigor 5.8.9
+        run: |
+          # command-line-tools 5.0.3.906 bundles an older hvigor that breaks
+          # flutter-ohos 3.22.0. Overlay the compatible 5.8.9 tool.
+          rm -rf /opt/command-line-tools/hvigor
+          tar xzf ohos/third_party/hvigor-5.8.9.tar.gz -C /opt/command-line-tools/
+
       - name: Write local.properties (CI SDK paths)
         run: |
           cat > ohos/local.properties << 'EOF'
