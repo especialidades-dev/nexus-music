@@ -89,13 +89,13 @@ class HarmonyOSAudioHandler extends BaseAudioHandler {
         ));
         break;
       case 'onPositionChanged':
-        final position = call.arguments as int;
+        final position = (call.arguments as num).toInt();
         playbackState.add(playbackState.value.copyWith(
           updatePosition: Duration(milliseconds: position),
         ));
         break;
       case 'onDurationChanged':
-        final duration = call.arguments as int;
+        final duration = (call.arguments as num).toInt();
         final currentQueue = queue.value;
         if (currentIndex != null &&
             currentIndex < currentQueue.length &&
@@ -109,8 +109,20 @@ class HarmonyOSAudioHandler extends BaseAudioHandler {
         if (loopModeEnabled) {
           await _channel.invokeMethod('seek', {'position': 0});
           await _channel.invokeMethod('play', {'url': currentSongUrl});
+          await _sendMetadata();
         } else {
           await skipToNext();
+        }
+        break;
+      case 'onCommand':
+        final args = call.arguments as Map<Object?, Object?>?;
+        if (args != null) {
+          final command = args['command'] as String?;
+          if (command == 'next') {
+            await skipToNext();
+          } else if (command == 'previous') {
+            await skipToPrevious();
+          }
         }
         break;
     }
@@ -294,6 +306,17 @@ class HarmonyOSAudioHandler extends BaseAudioHandler {
     queue.add(newQueue);
   }
 
+  Future<void> _sendMetadata() async {
+    final item = mediaItem.value;
+    if (item != null) {
+      await _channel.invokeMethod('updateMetadata', {
+        'title': item.title,
+        'artist': item.artist,
+        'imageUrl': item.artUri?.toString() ?? '',
+      });
+    }
+  }
+
   // --- transport controls (HarmonyOS native via channel) ---
   @override
   Future<void> play() async {
@@ -303,6 +326,7 @@ class HarmonyOSAudioHandler extends BaseAudioHandler {
       return;
     }
     await _channel.invokeMethod('play', {'url': currentSongUrl});
+    await _sendMetadata();
   }
 
   @override
@@ -470,11 +494,13 @@ class HarmonyOSAudioHandler extends BaseAudioHandler {
           if (restoreSession) {
             final position = extras?['position'];
             await _channel.invokeMethod('play', {'url': currentSongUrl});
+            _sendMetadata();
             if (position != null) {
               await _channel.invokeMethod('seek', {'position': position});
             }
           } else {
             await _channel.invokeMethod('play', {'url': currentSongUrl});
+            _sendMetadata();
             playbackState.add(playbackState.value.copyWith(
               processingState: AudioProcessingState.ready,
               playing: true,
@@ -531,6 +557,7 @@ class HarmonyOSAudioHandler extends BaseAudioHandler {
             _normalizeVolume(audio.loudnessDb);
           }
           await _channel.invokeMethod('play', {'url': currentSongUrl});
+          await _sendMetadata();
         } catch (e) {
           printINFO("setSourceNPlay error: $e");
         }

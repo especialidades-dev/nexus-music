@@ -1,23 +1,8 @@
 {
   "app": {
-    "signingConfigs": [
-      {
-        "name": "debug",
-        "material": {
-          "certpath": "/home/lex/nexus-music-project/ohos/signing/app-debug.cer",
-          "storeFile": "/home/lex/nexus-music-project/ohos/signing/nexus-app-key-signed.p12",
-          "storePassword": "12345678901234567890123456789012",
-          "keyPassword": "12345678901234567890123456789012",
-          "keyAlias": "nexus-app-key",
-          "profile": "./signing/signed-profile-proper.p7b",
-          "signAlg": "SHA256withECDSA"
-        }
-      }
-    ],
     "products": [
       {
         "name": "default",
-        "signingConfig": "debug",
         "compatibleSdkVersion": "5.0.0(12)",
         "runtimeOS": "HarmonyOS"
       }

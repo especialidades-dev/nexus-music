@@ -38,6 +38,16 @@ class AudioServiceHandler implements MethodCallHandler {
       case 'getDuration':
         result.success(this.audioBridge.getDuration());
         break;
+      case 'updateMetadata':
+        this.audioBridge.updateMetadata(
+          call.argument('title') as string,
+          call.argument('artist') as string,
+          call.argument('imageUrl') as string,
+          call.argument('album') as string,
+          call.argument('duration') as number
+        );
+        result.success(true);
+        break;
       case 'release':
         this.audioBridge.release();
         result.success(true);
@@ -52,7 +62,7 @@ export class NexusMusicPluginRegistrant {
   private audioBridge: AudioBridge = new AudioBridge();
 
   registerPlugins(flutterEngine: FlutterEngine, context: common.Context): void {
-    this.registerAudioService(flutterEngine);
+    this.registerAudioService(flutterEngine, context);
     this.registerAudioServicePlatform(flutterEngine);
     this.registerPathProvider(flutterEngine, context);
   }
@@ -95,10 +105,11 @@ export class NexusMusicPluginRegistrant {
     } as ESObject);
   }
 
-  private registerAudioService(flutterEngine: FlutterEngine): void {
+  private registerAudioService(flutterEngine: FlutterEngine, context: common.Context): void {
     const channel = new MethodChannel(flutterEngine.getDartExecutor(), 'nexus_music/audio')
     channel.setMethodCallHandler(new AudioServiceHandler(this.audioBridge))
     this.audioBridge.setCallbackChannel(channel)
+    this.audioBridge.setContext(context)
   }
 
   private registerAudioServicePlatform(flutterEngine: FlutterEngine): void {

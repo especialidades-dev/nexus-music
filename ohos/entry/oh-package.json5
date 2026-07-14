@@ -2,5 +2,8 @@
   "name": "entry",
   "version": "1.0.0",
   "description": "Nexus Music entry module for Harmony OS",
-  "dependencies": {}
+  "dependencies": {
+    "@ohos/flutter_ohos": "",
+    "flutter_native_arm64_v8a": ""
+  }
 }
