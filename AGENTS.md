@@ -6,7 +6,10 @@
 ```bash
 # Install deps
 sudo apt-get install libmpv-dev mpv libayatana-appindicator3-dev ninja-build libgtk-3-dev
-# Build
+# Build (MUST use standard Flutter SDK, NOT flutter_ohos)
+# flutter_ohos has incompatible Linux engine (segfault with Dart AOT)
+export PATH="/home/lex/flutter/bin:$HOME/.pub-cache/bin:$PATH"
+export FLUTTER_ROOT=/home/lex/flutter
 dart pub global activate flutter_distributor
 flutter_distributor package --platform linux --targets deb
 ```
