@@ -98,3 +98,6 @@ ohos/build/
 # rawfile/flutter_assets are generated Flutter build outputs.
 ohos/entry/src/main/resources/rawfile/
 
+*.apk
+*.deb
+*.app
