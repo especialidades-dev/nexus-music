@@ -27,12 +27,12 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initHive();
   _setAppInitPrefs();
-  startApplicationServices();
   if (isHarmonyOS) {
     Get.put<AudioHandler>(await initHarmonyOSAudioService(), permanent: true);
   } else {
     Get.put<AudioHandler>(await initAudioService(), permanent: true);
   }
+  startApplicationServices();
   WidgetsBinding.instance.addObserver(LifecycleHandler());
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   TerminateRestart.instance.initialize();
