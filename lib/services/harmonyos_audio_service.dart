@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'dart:math';
-
+import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
@@ -129,6 +129,34 @@ class HarmonyOSAudioHandler extends BaseAudioHandler {
   }
 
   // --- url resolution (mirrors MyAudioHandler.checkNGetUrl) ---
+  /// Valida URLs cacheadas con probes de rango antes de usarlas.
+  /// Rechaza URLs gateadas (era OpenTune) y fuerza un fetch fresco.
+  Future<bool> isCachedUrlPlayable(dynamic streamInfoJson) async {
+    try {
+      final url = streamInfoJson['lowQualityAudio']?['url']?.toString();
+      if (url == null || url.isEmpty) return false;
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 8),
+        receiveTimeout: const Duration(seconds: 10),
+        sendTimeout: const Duration(seconds: 8),
+      ));
+      for (final end in [0, 262144, 1048576]) {
+        final r = await dio.get<List<int>>(
+          url,
+          options: Options(
+            responseType: ResponseType.bytes,
+            headers: {'Range': 'bytes=$end-${end + 1}'},
+            validateStatus: (_) => true,
+          ),
+        );
+        if (r.statusCode == 403) return false;
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<HMStreamingData> checkNGetUrl(String songId,
       {bool generateNewUrl = false, bool offlineReplacementUrl = false}) async {
     printINFO("Requested id : $songId");
@@ -203,8 +231,13 @@ class HarmonyOSAudioHandler extends BaseAudioHandler {
             !isExpired(url: (streamInfoJson['lowQualityAudio']['url']))) {
           final itag = streamInfoJson['lowQualityAudio']['itag'];
           if (itag == 140 || itag == 139) {
-            printINFO("Got cached Url ($songId)");
-            streamInfo = HMStreamingData.fromJson(streamInfoJson);
+            final cachedPlayable = await isCachedUrlPlayable(streamInfoJson);
+            if (cachedPlayable) {
+              printINFO("Got cached Url ($songId)");
+              streamInfo = HMStreamingData.fromJson(streamInfoJson);
+            } else {
+              printINFO("Cached URL gateada, fetching fresh ($songId)");
+            }
           } else {
             printINFO("Cached Opus URL (itag=$itag), fetching AAC");
           }
@@ -215,7 +248,7 @@ class HarmonyOSAudioHandler extends BaseAudioHandler {
         try {
           printINFO("Fetching stream via StreamProvider.fetch");
           final sp = await StreamProvider.fetch(songId).timeout(
-            const Duration(seconds: 15),
+            const Duration(seconds: 60),
             onTimeout: () => throw Exception("Stream fetch timed out"),
           );
           final aacAudio = sp.highestBitrateMp4aAudio;
@@ -255,7 +288,6 @@ class HarmonyOSAudioHandler extends BaseAudioHandler {
   @override
   Future<void> addQueueItems(List<MediaItem> mediaItems) async {
     final newQueue = queue.value..addAll(mediaItems);
-    queue.add(newQueue);
     if (shuffleModeEnabled) {
       final mediaItemsIds = mediaItems.toList().map((item) => item.id).toList();
       final notPlayedshuffledQueue = shuffledQueue.isNotEmpty

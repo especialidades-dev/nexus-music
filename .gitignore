@@ -97,6 +97,8 @@ ohos/entry/build/
 ohos/build/
 # rawfile/flutter_assets are generated Flutter build outputs.
 ohos/entry/src/main/resources/rawfile/
+# Native Flutter engine binaries are generated build outputs.
+ohos/entry/libs/
 
 *.apk
 *.deb

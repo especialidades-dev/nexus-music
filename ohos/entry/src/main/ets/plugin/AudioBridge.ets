@@ -219,6 +219,7 @@ class AudioBridge {
       console.error('NexusMusic play: no url');
       return;
     }
+    console.info(`NexusMusic play: url=${playUrl.substring(0, 100)}`);
     if (this.isTransitioning) {
       console.info('NexusMusic play: already transitioning, requeuing');
       setTimeout(() => { this.play(playUrl); }, 500);

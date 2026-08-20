@@ -2,6 +2,7 @@ import { FlutterEngine, MethodChannel, MethodCall, MethodCallHandler, MethodResu
 import common from '@ohos.app.ability.common';
 import PathUtils from '@ohos/flutter_ohos/src/main/ets/util/PathUtils';
 import AudioBridge from './AudioBridge';
+import { PoTokenBridge } from './PoTokenBridge';
 
 class AudioServiceHandler implements MethodCallHandler {
   private audioBridge: AudioBridge
@@ -58,6 +59,49 @@ class AudioServiceHandler implements MethodCallHandler {
   }
 }
 
+class PoTokenServiceHandler implements MethodCallHandler {
+  private poTokenBridge: PoTokenBridge = PoTokenBridge.getInstance();
+
+  onMethodCall(call: MethodCall, result: MethodResult): void {
+    switch (call.method) {
+      case 'getTokens':
+        result.success(this.poTokenBridge.getTokens());
+        break;
+      case 'getVideoStreams':
+        const videoId = call.argument('videoId') as string;
+        if (!videoId) {
+          result.error('INVALID_VIDEO_ID', 'videoId required', null);
+          return;
+        }
+        this.poTokenBridge.getVideoStreams(videoId).then((json) => {
+          result.success(json);
+        }).catch((e: Error) => {
+          result.error('STREAMS_ERROR', String(e), null);
+        });
+        break;
+      case 'refresh':
+        this.poTokenBridge.loadAndExtract();
+        result.success(true);
+        break;
+      case 'extractBotGuardPoToken': {
+        const videoId = call.argument('videoId') as string;
+        if (!videoId) {
+          result.error('INVALID_VIDEO_ID', 'videoId required', null);
+          return;
+        }
+        this.poTokenBridge.extractBotGuardPoToken(videoId).then((poToken) => {
+          result.success(poToken);
+        }).catch((e: Error) => {
+          result.error('BOTGUARD_ERROR', String(e), null);
+        });
+        break;
+      }
+      default:
+        result.notImplemented();
+    }
+  }
+}
+
 export class NexusMusicPluginRegistrant {
   private audioBridge: AudioBridge = new AudioBridge();
 
@@ -65,6 +109,8 @@ export class NexusMusicPluginRegistrant {
     this.registerAudioService(flutterEngine, context);
     this.registerAudioServicePlatform(flutterEngine);
     this.registerPathProvider(flutterEngine, context);
+    this.registerPoTokenService(flutterEngine);
+    PoTokenBridge.getInstance().loadAndExtract();
   }
 
   private registerPathProvider(flutterEngine: FlutterEngine, context: common.Context): void {
@@ -120,5 +166,10 @@ export class NexusMusicPluginRegistrant {
       .setMethodCallHandler({ onMethodCall: ack } as ESObject)
     new MethodChannel(flutterEngine.getDartExecutor(), 'com.ryanheise.audio_service.handler.methods')
       .setMethodCallHandler({ onMethodCall: ack } as ESObject)
+  }
+
+  private registerPoTokenService(flutterEngine: FlutterEngine): void {
+    const channel = new MethodChannel(flutterEngine.getDartExecutor(), 'nexus_music/potoken')
+    channel.setMethodCallHandler(new PoTokenServiceHandler())
   }
 }
