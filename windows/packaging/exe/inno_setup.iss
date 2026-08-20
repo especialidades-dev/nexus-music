@@ -1,6 +1,6 @@
 [Setup]
 AppId=B9F6E402-0CAE-4045-BDE6-14BD6C39C4EA
-AppVersion=1.12.2+27
+AppVersion=2.1.8+218
 AppName=Nexus Music
 AppPublisher=especialidades-dev
 AppPublisherURL=https://github.com/especialidades-dev/nexus-music
@@ -9,7 +9,7 @@ AppUpdatesURL=https://github.com/especialidades-dev/nexus-music
 DefaultDirName={autopf}\nexusmusic
 DisableProgramGroupPage=yes
 OutputDir=.
-OutputBaseFilename=nexusmusic-1.14.1
+OutputBaseFilename=nexusmusic-2.1.8+218
 Compression=lzma
 SolidCompression=yes
 SetupIconFile=..\..\windows\runner\resources\app_icon.ico
