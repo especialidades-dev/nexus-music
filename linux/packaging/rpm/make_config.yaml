@@ -4,7 +4,7 @@ group: Application/Multimedia
 vendor: Nexus Music Team
 packager: Nexus Music Team
 license: GPLv3
-url: https://github.com/nexus-music/nexus-music
+url: https://github.com/especialidades-dev/nexus-music
 
 requires:
   - mpv-libs
