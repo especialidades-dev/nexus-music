@@ -17,6 +17,7 @@ import '/models/media_Item_builder.dart';
 import '/services/background_task.dart';
 import '/services/permission_service.dart';
 import '../utils/helper.dart';
+import '../utils/folder_picker.dart';
 import '/services/utils.dart';
 import '../ui/screens/Settings/settings_screen_controller.dart';
 import '../ui/screens/Library/library_controller.dart';
@@ -238,7 +239,7 @@ class HarmonyOSAudioHandler extends BaseAudioHandler {
       final song = songDownloadsBox.get(songId);
       final streamInfoJson = song["streamInfo"];
       Audio? audio;
-      final path = song['url'];
+      final String path = (song['url'] ?? '').toString();
       if (streamInfoJson != null && streamInfoJson.isNotEmpty) {
         audio = Audio.fromJson(streamInfoJson[1]);
       } else {
@@ -265,6 +266,16 @@ class HarmonyOSAudioHandler extends BaseAudioHandler {
           return streamInfo;
         }
         printINFO("Downloaded file missing, fetching online ($songId)");
+        return checkNGetUrl(songId, offlineReplacementUrl: true);
+      }
+      // A folder chosen via the system picker is a document URI (file://docs/...)
+      // that only the native bridge can stat.
+      if (isContentFolder(path)) {
+        if (await downloadedFileExists(path)) {
+          return streamInfo;
+        }
+        printINFO(
+            "Downloaded file missing in chosen folder, fetching online ($songId)");
         return checkNGetUrl(songId, offlineReplacementUrl: true);
       }
       bool hasAccess = false;

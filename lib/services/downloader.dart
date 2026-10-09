@@ -16,6 +16,7 @@ import '../ui/widgets/snackbar.dart';
 import '/services/permission_service.dart';
 import '../ui/screens/Settings/settings_screen_controller.dart';
 import '/utils/helper.dart';
+import '/utils/folder_picker.dart';
 import '/models/media_Item_builder.dart';
 import '../ui/screens/Library/library_controller.dart';
 import 'music_service.dart';
@@ -36,14 +37,27 @@ class Downloader extends GetxService {
   Future<bool> checkPermissionNDir() async {
     final settingsScreenController = Get.find<SettingsScreenController>();
 
+    final dirPath =
+        Get.find<SettingsScreenController>().downloadLocationPath.string;
+
+    if (isHarmonyOSRuntime && isContentFolder(dirPath)) {
+      // HarmonyOS document URI folder: no storage permission is involved, just
+      // make sure the grant is still valid. If it was revoked, fall back to the
+      // in-app folder so downloads keep working.
+      final ok = await folderAccessible(dirPath);
+      if (!ok) {
+        settingsScreenController.resetDownloadLocation();
+      }
+      return true;
+    }
+
     if (!settingsScreenController.isCurrentPathsupportDownDir &&
         !await PermissionService.getExtStoragePermission()) {
       return false;
     }
 
-    final dirPath =
-        Get.find<SettingsScreenController>().downloadLocationPath.string;
-    final directory = Directory(dirPath);
+    final directory = Directory(
+        Get.find<SettingsScreenController>().downloadLocationPath.string);
     if (!await directory.exists()) {
       await directory.create(recursive: true);
     }
@@ -192,14 +206,21 @@ class Downloader extends GetxService {
         RegExp(r'Container.|\/|\\|\"|\<|\>|\*|\?|\:|\!|\[|\]|\¡|\||\%');
     final songTitle = "${song.title.trim()} (${song.artist?.trim()})"
         .replaceAll(invalidChar, "");
-    String filePath = "$dirPath/$songTitle.$actualDownformat";
-    printINFO("Downloading filePath: $filePath");
+    // On HarmonyOS a user-chosen folder is a document URI that only the native
+    // layer can write to, so download to a sandbox temp file and import it
+    // afterwards. The default in-app folder is written directly as before.
+    final isExternalFolder = isHarmonyOSRuntime && isContentFolder(dirPath);
+    final fileName = "$songTitle.$actualDownformat";
+    final String downloadTarget = isExternalFolder
+        ? "${settingsScreenController.supportDirPath}/.tmp_download_${song.id}.$actualDownformat"
+        : "$dirPath/$fileName";
+    printINFO("Downloading to: $downloadTarget (external=$isExternalFolder)");
     final totalBytes = requiredAudioStream.size;
 
     _dio.download(
         requiredAudioStream.url,
         options: Options(headers: {"Range": 'bytes=0-$totalBytes'}),
-        filePath, onReceiveProgress: (count, total) {
+        downloadTarget, onReceiveProgress: (count, total) {
       if (total <= 0) return;
       songDownloadingProgress.value = ((count / total) * 100).toInt();
     }).then(
@@ -226,21 +247,12 @@ class Downloader extends GetxService {
           // ignore: empty_catches
         } catch (e) {}
 
-        song.extras?['url'] = filePath;
-        final songJson = MediaItemBuilder.toJson(song);
-        final streamInfoJson = requiredAudioStream.toJson();
-        streamInfoJson['url'] = filePath;
-        // [playbility status, info map]
-        songJson["streamInfo"] = [true, streamInfoJson];
-
-        Hive.box("SongDownloads").put(song.id, songJson);
-        Get.find<LibrarySongsController>().librarySongsList.add(song);
-        printINFO("Downloaded successfully");
-
         final trackDetails = (song.extras?['trackDetails'])?.split("/");
         final int? trackNumber = int.tryParse(trackDetails?[0] ?? "");
         final int? totalTracks = int.tryParse(trackDetails?[1] ?? "");
 
+        // Write tags while the file is still in the sandbox; copying it into
+        // the chosen folder keeps the embedded metadata.
         try {
           /// Reverted -- Removed AudioTags as using this package, app is flagged as TROJ_GEN.R002V01K623 by TrendMicro-HouseCall
           final imageUrl = song.artUri!.toString();
@@ -263,10 +275,49 @@ class Downloader extends GetxService {
                     pictureType: PictureType.coverFront)
               ]);
 
-          await AudioTags.write(filePath, tag);
+          await AudioTags.write(downloadTarget, tag);
         } catch (e) {
           printERROR("$e");
         }
+
+        String filePath = downloadTarget;
+        if (isExternalFolder) {
+          final imported = await importFileIntoFolder(
+              folderUri: dirPath, fileName: fileName, srcPath: downloadTarget);
+          if (imported != null && imported.isNotEmpty) {
+            filePath = imported;
+            try {
+              await File(downloadTarget).delete();
+            } catch (_) {}
+          } else {
+            // The chosen folder is not reachable (permission revoked). Keep the
+            // file in the app sandbox so it still plays offline.
+            final fallbackDir =
+                "${settingsScreenController.supportDirPath}/Music";
+            try {
+              final fb = Directory(fallbackDir);
+              if (!await fb.exists()) await fb.create(recursive: true);
+              final fallbackPath = "$fallbackDir/$fileName";
+              await File(downloadTarget).rename(fallbackPath);
+              filePath = fallbackPath;
+              printINFO(
+                  "Chosen folder unavailable, kept in sandbox: $fallbackPath");
+            } catch (e) {
+              printERROR("Chosen folder fallback failed: $e");
+            }
+          }
+        }
+
+        song.extras?['url'] = filePath;
+        final songJson = MediaItemBuilder.toJson(song);
+        final streamInfoJson = requiredAudioStream.toJson();
+        streamInfoJson['url'] = filePath;
+        // [playbility status, info map]
+        songJson["streamInfo"] = [true, streamInfoJson];
+
+        Hive.box("SongDownloads").put(song.id, songJson);
+        Get.find<LibrarySongsController>().librarySongsList.add(song);
+        printINFO("Downloaded successfully: $filePath");
         complete.complete();
       },
     ).onError(

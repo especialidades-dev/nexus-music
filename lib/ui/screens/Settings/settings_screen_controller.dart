@@ -13,6 +13,7 @@ import '/services/piped_service.dart';
 import '../Library/library_controller.dart';
 import '../../widgets/snackbar.dart';
 import '../../../utils/helper.dart';
+import '../../../utils/folder_picker.dart';
 import '/services/music_service.dart';
 import '/ui/player/player_controller.dart';
 import '../Home/home_screen_controller.dart';
@@ -38,6 +39,9 @@ class SettingsScreenController extends GetxController {
   final stopPlyabackOnSwipeAway = false.obs;
   final currentAppLanguageCode = "en".obs;
   final downloadLocationPath = "".obs;
+  final downloadLocationDisplay = "".obs;
+  final downloadLocationIsExternal = false.obs;
+  final downloadLocationPersisted = true.obs;
   final exportLocationPath = "".obs;
   final downloadingFormat = "".obs;
   final autoDownloadFavoriteSongEnabled = false.obs;
@@ -106,12 +110,26 @@ class SettingsScreenController extends GetxController {
     backgroundPlayEnabled.value = setBox.get("backgroundPlayEnabled") ?? true;
     keepScreenAwake.value =
         setBox.get("keepScreenAwake") ?? GetPlatform.isDesktop ? true : false;
-    final downloadPath =
-        setBox.get('downloadLocationPath') ?? await _createInAppSongDownDir();
-    downloadLocationPath.value =
-        (isDesktop && downloadPath.contains("emulated"))
-            ? await _createInAppSongDownDir()
-            : downloadPath;
+    final defaultDownloadDir = await _createInAppSongDownDir();
+    final storedDownloadPath = setBox.get('downloadLocationPath') as String?;
+    String resolvedDownloadPath = storedDownloadPath ?? defaultDownloadDir;
+    if (isDesktop && resolvedDownloadPath.contains("emulated")) {
+      resolvedDownloadPath = defaultDownloadDir;
+    }
+    downloadLocationIsExternal.value = isContentFolder(resolvedDownloadPath);
+    downloadLocationPath.value = resolvedDownloadPath;
+    final storedName = setBox.get('downloadLocationName') as String?;
+    downloadLocationDisplay.value = storedName ??
+        (resolvedDownloadPath == defaultDownloadDir
+            ? "In App storage directory"
+            : resolvedDownloadPath);
+    if (downloadLocationIsExternal.value) {
+      // Revalidate folder access in the background. The downloader also falls
+      // back to the sandbox if the folder is no longer reachable.
+      folderAccessible(resolvedDownloadPath).then((ok) {
+        downloadLocationPersisted.value = ok;
+      });
+    }
 
     exportLocationPath.value =
         setBox.get("exportLocationPath") ?? "/storage/emulated/0/Music";
@@ -202,18 +220,31 @@ class SettingsScreenController extends GetxController {
   }
 
   Future<void> setDownloadLocation() async {
-    if (!await PermissionService.getExtStoragePermission()) {
+    // HarmonyOS uses the native system document picker (no storage permission
+    // is required). Other platforms keep the permission + file_picker flow.
+    if (!isHarmonyOSRuntime &&
+        !await PermissionService.getExtStoragePermission()) {
       return;
     }
 
-    final String? pickedFolderPath = await FilePicker.platform
-        .getDirectoryPath(dialogTitle: "Select downloads folder");
-    if (pickedFolderPath == '/' || pickedFolderPath == null) {
+    final folder = await pickDownloadFolder();
+    if (folder == null) {
       return;
     }
 
-    setBox.put("downloadLocationPath", pickedFolderPath);
-    downloadLocationPath.value = pickedFolderPath;
+    setBox.put("downloadLocationPath", folder.uri);
+    setBox.put("downloadLocationName", folder.display);
+    downloadLocationPath.value = folder.uri;
+    downloadLocationDisplay.value = folder.display;
+    downloadLocationIsExternal.value = folder.isExternal;
+    downloadLocationPersisted.value = folder.persisted;
+  }
+
+  /// Re-checks access to the configured download folder (HarmonyOS).
+  Future<void> revalidateDownloadLocation() async {
+    if (!downloadLocationIsExternal.value) return;
+    final ok = await folderAccessible(downloadLocationPath.value);
+    downloadLocationPersisted.value = ok;
   }
 
   void disableTransitionAnimation(bool val) {
@@ -236,7 +267,11 @@ class SettingsScreenController extends GetxController {
   void resetDownloadLocation() {
     final defaultPath = "$_supportDir/Music";
     setBox.put("downloadLocationPath", defaultPath);
+    setBox.delete("downloadLocationName");
     downloadLocationPath.value = defaultPath;
+    downloadLocationDisplay.value = "In App storage directory";
+    downloadLocationIsExternal.value = false;
+    downloadLocationPersisted.value = true;
   }
 
   void onThemeChange(dynamic val) {

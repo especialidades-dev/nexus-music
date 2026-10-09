@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:audio_service/audio_service.dart';
 import 'package:nexusmusic/utils/helper.dart';
 import 'package:nexusmusic/utils/lang_mapping.dart';
 import 'package:nexusmusic/utils/open_url.dart';
+import 'package:nexusmusic/models/media_Item_builder.dart';
+import 'package:nexusmusic/services/downloader.dart';
 
 import '../../widgets/common_dialog_widget.dart';
 import '../../widgets/cust_switch.dart';
@@ -521,6 +525,21 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   ListTile(
                     contentPadding: const EdgeInsets.only(left: 5, right: 10),
+                    title: Text("downloadAllFavorites".tr),
+                    trailing: const Icon(Icons.download_for_offline_outlined),
+                    onTap: () async {
+                      final favBox = await Hive.openBox("LIBFAV");
+                      final favSongs = favBox.values
+                          .map<MediaItem?>((e) => MediaItemBuilder.fromJson(e))
+                          .whereType<MediaItem>()
+                          .toList();
+                      if (favSongs.isEmpty) return;
+                      Get.find<Downloader>()
+                          .downloadPlaylist("LIBFAV", favSongs);
+                    },
+                  ),
+                  ListTile(
+                    contentPadding: const EdgeInsets.only(left: 5, right: 10),
                     title: Text("downloadingFormat".tr),
                     subtitle: Text("downloadingFormatDes".tr,
                         style: Theme.of(context).textTheme.bodyMedium),
@@ -560,7 +579,7 @@ class SettingsScreen extends StatelessWidget {
                     subtitle: Obx(() => Text(
                         settingsController.isCurrentPathsupportDownDir
                             ? "In App storage directory"
-                            : settingsController.downloadLocationPath.value,
+                            : settingsController.downloadLocationDisplay.value,
                         style: Theme.of(context).textTheme.bodyMedium)),
                     onTap: () async {
                       settingsController.setDownloadLocation();
