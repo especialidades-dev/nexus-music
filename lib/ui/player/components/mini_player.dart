@@ -8,6 +8,7 @@ import 'package:widget_marquee/widget_marquee.dart';
 import '/ui/widgets/lyrics_dialog.dart';
 import '/ui/widgets/song_info_dialog.dart';
 import '/ui/player/player_controller.dart';
+import '../../utils/liquid_glass.dart';
 import '../../widgets/add_to_playlist.dart';
 import '../../widgets/sleep_timer_bottom_sheet.dart';
 import '../../widgets/song_download_btn.dart';
@@ -30,10 +31,12 @@ class MiniPlayer extends StatelessWidget {
         child: AnimatedOpacity(
           opacity: playerController.playerPaneOpacity.value,
           duration: Duration.zero,
-          child: Container(
+          child: LiquidGlass(
             height: playerController.playerPanelMinHeight.value,
             width: size.width,
-            color: Theme.of(context).bottomSheetTheme.backgroundColor,
+            blur: 24,
+            radius: 0,
+            boxShadow: const [],
             child: Center(
               child: Column(
                 children: [

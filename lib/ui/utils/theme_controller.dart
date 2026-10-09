@@ -115,9 +115,10 @@ class ThemeController extends GetxController {
           primaryColorDark: primarySwatch[700],
           //secondaryHeaderColor: primarySwatch[50],
           canvasColor: primarySwatch[700],
+          scaffoldBackgroundColor: primarySwatch[700]!.withOpacity(0.35),
           //scaffoldBackgroundColor: primarySwatch[700],
           bottomSheetTheme: BottomSheetThemeData(
-              backgroundColor: primarySwatch[600],
+              backgroundColor: primarySwatch[600]!.withOpacity(0.85),
               modalBarrierColor: primarySwatch[400]),
           textTheme: TextTheme(
             titleLarge: const TextStyle(
@@ -183,6 +184,7 @@ class ThemeController extends GetxController {
           useMaterial3: false,
           brightness: Brightness.dark,
           canvasColor: Colors.black,
+          scaffoldBackgroundColor: Colors.black.withOpacity(0.42),
           primaryColor: Colors.black,
           primaryColorDark: Colors.black,
           primaryColorLight: Colors.grey[850],
@@ -218,8 +220,9 @@ class ThemeController extends GetxController {
                   fontSize: 15),
               unselectedLabelTextStyle: TextStyle(
                   color: Colors.white38, fontWeight: FontWeight.bold)),
-          bottomSheetTheme: const BottomSheetThemeData(
-              backgroundColor: Colors.black, modalBarrierColor: Colors.black),
+          bottomSheetTheme: BottomSheetThemeData(
+              backgroundColor: Colors.black.withOpacity(0.86),
+              modalBarrierColor: Colors.black),
           sliderTheme: const SliderThemeData(
             //base bar color
             inactiveTrackColor: Colors.white30,
@@ -254,6 +257,7 @@ class ThemeController extends GetxController {
           useMaterial3: false,
           brightness: Brightness.light,
           canvasColor: Colors.white,
+          scaffoldBackgroundColor: Colors.white.withOpacity(0.25),
           colorScheme: ColorScheme.fromSwatch(
               accentColor: Colors.grey[400],
               backgroundColor: Colors.white,
@@ -289,8 +293,9 @@ class ThemeController extends GetxController {
                   fontSize: 15),
               unselectedLabelTextStyle: TextStyle(
                   color: Colors.grey[800], fontWeight: FontWeight.bold)),
-          bottomSheetTheme: const BottomSheetThemeData(
-              backgroundColor: Colors.white, modalBarrierColor: Colors.white),
+          bottomSheetTheme: BottomSheetThemeData(
+              backgroundColor: Colors.white.withOpacity(0.92),
+              modalBarrierColor: Colors.white),
           sliderTheme: SliderThemeData(
             //base bar color
             inactiveTrackColor: Colors.black38,

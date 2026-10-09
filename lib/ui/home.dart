@@ -11,6 +11,7 @@ import '../ui/navigator.dart';
 import '../ui/player/player.dart';
 import 'player/components/mini_player.dart';
 import 'player/player_controller.dart';
+import 'utils/liquid_glass.dart';
 import 'widgets/bottom_nav_bar.dart';
 import 'widgets/scroll_to_hide.dart';
 import 'widgets/sliding_up_panel.dart';
@@ -63,8 +64,11 @@ class Home extends StatelessWidget {
         }
       },
             child: Obx(
-        () => Scaffold(
-              
+        () => Stack(
+          children: [
+            const Positioned.fill(child: LiquidGlassBackground()),
+            Scaffold(
+              backgroundColor: Colors.transparent,
               bottomNavigationBar: settingsScreenController
                       .isBottomNavBarEnabled.isTrue
                   ? ScrollToHideWidget(
@@ -184,6 +188,7 @@ class Home extends StatelessWidget {
                   : null,
               drawerScrimColor: Colors.transparent,
               body: Obx(() => SlidingUpPanel(
+                    color: Colors.transparent,
                     onPanelSlide: playerController.panellistener,
                     controller: playerController.playerPanelController,
                     minHeight: playerController.playerPanelMinHeight.value,
@@ -201,7 +206,9 @@ class Home extends StatelessWidget {
                           )
                         : const MiniPlayer(),
                   ))),
+          ],
         ),
+      ),
     );
   }
 }

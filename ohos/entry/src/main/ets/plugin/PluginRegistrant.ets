@@ -3,6 +3,7 @@ import common from '@ohos.app.ability.common';
 import PathUtils from '@ohos/flutter_ohos/src/main/ets/util/PathUtils';
 import AudioBridge from './AudioBridge';
 import { PoTokenBridge } from './PoTokenBridge';
+import { UrlBridge, UrlServiceHandler } from './UrlBridge';
 
 class AudioServiceHandler implements MethodCallHandler {
   private audioBridge: AudioBridge
@@ -104,12 +105,14 @@ class PoTokenServiceHandler implements MethodCallHandler {
 
 export class NexusMusicPluginRegistrant {
   private audioBridge: AudioBridge = new AudioBridge();
+  private urlBridge: UrlBridge = new UrlBridge();
 
   registerPlugins(flutterEngine: FlutterEngine, context: common.Context): void {
     this.registerAudioService(flutterEngine, context);
     this.registerAudioServicePlatform(flutterEngine);
     this.registerPathProvider(flutterEngine, context);
     this.registerPoTokenService(flutterEngine);
+    this.registerUrlService(flutterEngine, context);
     PoTokenBridge.getInstance().loadAndExtract();
   }
 
@@ -171,5 +174,11 @@ export class NexusMusicPluginRegistrant {
   private registerPoTokenService(flutterEngine: FlutterEngine): void {
     const channel = new MethodChannel(flutterEngine.getDartExecutor(), 'nexus_music/potoken')
     channel.setMethodCallHandler(new PoTokenServiceHandler())
+  }
+
+  private registerUrlService(flutterEngine: FlutterEngine, context: common.Context): void {
+    this.urlBridge.setContext(context);
+    const channel = new MethodChannel(flutterEngine.getDartExecutor(), 'nexus_music/url')
+    channel.setMethodCallHandler(new UrlServiceHandler(this.urlBridge))
   }
 }

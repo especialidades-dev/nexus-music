@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../widgets/songinfo_bottom_sheet.dart';
+import '../../utils/liquid_glass.dart';
 import '../player_controller.dart';
 import 'albumart_lyrics.dart';
 import 'backgroud_image.dart';
@@ -116,7 +117,13 @@ class StandardPlayer extends StatelessWidget {
                               left: 10.0,
                               right: 10,
                               bottom: Get.mediaQuery.padding.bottom),
-                          child: const PlayerControlWidget(),
+                          child: const LiquidGlass(
+                            radius: 30,
+                            blur: 16,
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            child: PlayerControlWidget(),
+                          ),
                         ))
                   ],
                 )
@@ -157,7 +164,13 @@ class StandardPlayer extends StatelessWidget {
                           bottom: 80 + Get.mediaQuery.padding.bottom),
                       child: Container(
                           constraints: const BoxConstraints(maxWidth: 500),
-                          child: const PlayerControlWidget()),
+                          child: const LiquidGlass(
+                            radius: 30,
+                            blur: 16,
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            child: PlayerControlWidget(),
+                          )),
                     )
                   ],
                 ),
