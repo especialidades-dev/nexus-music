@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:nexusmusic/utils/open_url.dart';
 
 import '../screens/Home/home_screen_controller.dart';
 import 'common_dialog_widget.dart';
@@ -28,11 +28,8 @@ class NewVersionDialog extends StatelessWidget {
                   child: FittedBox(
                     child: FloatingActionButton(
                       onPressed: () {
-                        launchUrl(
-                          Uri.parse(
-                            'https://github.com/especialidades-dev/nexus-music/releases/latest',
-                          ),
-                          mode: LaunchMode.externalApplication,
+                        openExternalUrl(
+                          'https://github.com/especialidades-dev/nexus-music/releases/latest',
                         );
                       },
                       child: const Icon(

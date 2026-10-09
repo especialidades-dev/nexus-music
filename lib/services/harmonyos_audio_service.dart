@@ -56,6 +56,7 @@ class HarmonyOSAudioHandler extends BaseAudioHandler {
   bool isSongLoading = true;
   List<String> shuffledQueue = [];
   String? _cacheDir;
+  int _consecutivePlaybackErrors = 0;
 
   Future<void> _initPrefs() async {
     try {
@@ -75,6 +76,9 @@ class HarmonyOSAudioHandler extends BaseAudioHandler {
     switch (call.method) {
       case 'onPlayerStateChanged':
         final playing = call.arguments as bool;
+        if (playing) {
+          _consecutivePlaybackErrors = 0;
+        }
         playbackState.add(playbackState.value.copyWith(
           playing: playing,
           processingState:
@@ -106,6 +110,7 @@ class HarmonyOSAudioHandler extends BaseAudioHandler {
         }
         break;
       case 'onCompleted':
+        _consecutivePlaybackErrors = 0;
         if (loopModeEnabled) {
           await _channel.invokeMethod('seek', {'position': 0});
           await _channel.invokeMethod('play', {'url': currentSongUrl});
@@ -125,7 +130,52 @@ class HarmonyOSAudioHandler extends BaseAudioHandler {
           }
         }
         break;
+      case 'onPlaybackError':
+        final errArgs = (call.arguments as Map<Object?, Object?>?) ?? const {};
+        await _handlePlaybackError(
+          errArgs['code']?.toString() ?? 'PLAYER_ERROR',
+          errArgs['message']?.toString() ?? 'Playback error',
+        );
+        break;
     }
+  }
+
+  /// Recovers automatically when the native AVPlayer reports an error
+  /// (network drop, stalled stream, URL death mid-playback, ...).
+  ///
+  /// Strategy: retry the current song once with a freshly fetched URL; if the
+  /// failure repeats, skip to the next song; after 3 consecutive failures the
+  /// queue stops and the user is notified instead of looping forever.
+  Future<void> _handlePlaybackError(String code, String message) async {
+    _consecutivePlaybackErrors++;
+    printINFO("Playback error #$_consecutivePlaybackErrors: $code - $message");
+    if (_consecutivePlaybackErrors >= 3) {
+      _consecutivePlaybackErrors = 0;
+      isSongLoading = false;
+      currentSongUrl = null;
+      playbackState.add(playbackState.value.copyWith(
+        processingState: AudioProcessingState.error,
+        errorCode: 500,
+        errorMessage: message,
+        playing: false,
+      ));
+      try {
+        Get.find<PlayerController>().notifyPlayError(message);
+      } catch (_) {}
+      return;
+    }
+    // Recovery 1: retry the same song with a brand new URL.
+    if (_consecutivePlaybackErrors == 1) {
+      final index = currentIndex;
+      if (index != null && index < queue.value.length) {
+        printINFO("Recovering: retrying song at index $index with fresh URL");
+        await customAction('playByIndex', {'index': index, 'newUrl': true});
+        return;
+      }
+    }
+    // Recovery 2: move on to the next song.
+    printINFO("Recovering: skipping to next song");
+    await skipToNext();
   }
 
   // --- url resolution (mirrors MyAudioHandler.checkNGetUrl) ---
@@ -208,7 +258,14 @@ class HarmonyOSAudioHandler extends BaseAudioHandler {
           lowQualityAudio: audio);
       if (path.contains(
           "${Get.find<SettingsScreenController>().supportDirPath}/Music")) {
-        return streamInfo;
+        // Only trust the local file when it really exists. Otherwise fall back
+        // to an online stream (fixes songs that "stopped playing" after a
+        // download entry was left behind without its file).
+        if (await File(path).exists()) {
+          return streamInfo;
+        }
+        printINFO("Downloaded file missing, fetching online ($songId)");
+        return checkNGetUrl(songId, offlineReplacementUrl: true);
       }
       bool hasAccess = false;
       try {

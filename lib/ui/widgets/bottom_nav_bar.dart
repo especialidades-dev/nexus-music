@@ -2,16 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:nexusmusic/ui/screens/Home/home_screen_controller.dart';
 
+import '../utils/liquid_glass.dart';
+
 class BottomNavBar extends StatelessWidget {
   const BottomNavBar({super.key});
 
   @override
   Widget build(BuildContext context) {
     final homeScreenController = Get.find<HomeScreenController>();
-    return Obx(() => NavigationBar(
+    return Obx(() => LiquidGlass(
+            blur: 24,
+            radius: 0,
+            boxShadow: const [],
+            child: NavigationBar(
             onDestinationSelected: homeScreenController.onBottonBarTabSelected,
             selectedIndex: homeScreenController.tabIndex.toInt(),
-            backgroundColor: Theme.of(context).primaryColor,
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
             indicatorColor: Theme.of(context).colorScheme.secondary,
             labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
             destinations: [
@@ -32,7 +40,7 @@ class BottomNavBar extends StatelessWidget {
                 icon: const Icon(Icons.settings),
                 label: modifyNgetlabel('settings'.tr),
               ),
-            ]));
+            ])));
   }
 
   String modifyNgetlabel(String label) {

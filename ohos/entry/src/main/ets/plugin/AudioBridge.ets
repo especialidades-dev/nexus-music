@@ -7,6 +7,11 @@ import common from '@ohos.app.ability.common';
 import backgroundTaskManager from '@ohos.resourceschedule.backgroundTaskManager';
 import wantAgent from '@ohos.wantAgent';
 
+interface PlaybackError {
+  code: number;
+  message: string;
+}
+
 class AudioBridge {
   private player: media.AVPlayer | null = null;
   private isInitialized: boolean = false;
@@ -20,6 +25,9 @@ class AudioBridge {
   private currentMetadata: avSession.AVMetadata | null = null;
   private lastSessionUpdate: number = 0;
   private pendingMetadata: avSession.AVMetadata | null = null;
+  private lastError: PlaybackError | null = null;
+  private stallTimer: number | undefined = undefined;
+  private readonly stallTimeoutMs: number = 30000;
 
   constructor() {
     this.initPlayer();
@@ -55,12 +63,14 @@ class AudioBridge {
         try {
           this.notify('onPositionChanged', time);
           this.refreshSessionPosition();
+          this.startStallWatchdog();
         } catch (e) {
           console.error(`NexusMusic timeUpdate handler error: ${JSON.stringify(e)}`);
         }
       });
       this.player.on('error', (err) => {
         console.error(`NexusMusic AVPlayer error: ${err.code} ${err.message}`);
+        this.lastError = { code: err.code, message: err.message };
         this.sessionActive = false;
       });
       this.isInitialized = true;
@@ -138,13 +148,16 @@ class AudioBridge {
     if (state === 'playing') {
       this.isPlaying = true;
       this.notify('onPlayerStateChanged', true);
+      this.startStallWatchdog();
       this.updateSessionPlaybackState(avSession.PlaybackState.PLAYBACK_STATE_PLAY);
     } else if (state === 'paused') {
       this.isPlaying = false;
+      this.clearStallWatchdog();
       this.notify('onPlayerStateChanged', false);
       this.updateSessionPlaybackState(avSession.PlaybackState.PLAYBACK_STATE_PAUSE);
     } else if (state === 'completed') {
       this.isPlaying = false;
+      this.clearStallWatchdog();
       this.notify('onPlayerStateChanged', false);
       this.notify('onCompleted', null);
       this.updateSessionPlaybackState(avSession.PlaybackState.PLAYBACK_STATE_COMPLETED);
@@ -162,10 +175,37 @@ class AudioBridge {
       }
     } else if (state === 'stopped' || state === 'idle') {
       this.isPlaying = false;
+      this.clearStallWatchdog();
       this.notify('onPlayerStateChanged', false);
     } else if (state === 'error') {
       this.isPlaying = false;
+      this.clearStallWatchdog();
       this.notify('onPlayerStateChanged', false);
+      const code = this.lastError ? String(this.lastError.code) : 'PLAYER_ERROR';
+      const message = this.lastError ? `${this.lastError.code} ${this.lastError.message}` : 'AVPlayer error';
+      this.notify('onPlaybackError', JSON.parse(JSON.stringify({ code: code, message: message })));
+    }
+  }
+
+  private startStallWatchdog(): void {
+    this.clearStallWatchdog();
+    if (!this.isPlaying) return;
+    this.stallTimer = setTimeout(() => {
+      this.stallTimer = undefined;
+      if (this.player && this.player.state === 'playing' && this.isPlaying) {
+        console.error('NexusMusic stall watchdog triggered (no timeUpdate for 30s)');
+        this.notify('onPlaybackError', JSON.parse(JSON.stringify({
+          code: 'STALL_TIMEOUT',
+          message: 'Playback stalled (no position updates)'
+        })));
+      }
+    }, this.stallTimeoutMs);
+  }
+
+  private clearStallWatchdog(): void {
+    if (this.stallTimer !== undefined) {
+      clearTimeout(this.stallTimer);
+      this.stallTimer = undefined;
     }
   }
 

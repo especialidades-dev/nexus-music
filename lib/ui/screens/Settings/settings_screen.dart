@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:nexusmusic/utils/helper.dart';
 import 'package:nexusmusic/utils/lang_mapping.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:nexusmusic/utils/open_url.dart';
 
 import '../../widgets/common_dialog_widget.dart';
 import '../../widgets/cust_switch.dart';
@@ -55,11 +55,8 @@ class SettingsScreen extends StatelessWidget {
                           type: MaterialType.transparency,
                           child: ListTile(
                             onTap: () {
-                              launchUrl(
-                                Uri.parse(
-                                  'https://github.com/especialidades-dev/nexus-music/releases/latest',
-                                ),
-                                mode: LaunchMode.externalApplication,
+                              openExternalUrl(
+                                'https://github.com/especialidades-dev/nexus-music/releases/latest',
                               );
                             },
                             shape: RoundedRectangleBorder(
@@ -667,11 +664,8 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     isThreeLine: true,
                     onTap: () {
-                      launchUrl(
-                        Uri.parse(
-                          'https://github.com/especialidades-dev/nexus-music',
-                        ),
-                        mode: LaunchMode.externalApplication,
+                      openExternalUrl(
+                        'https://github.com/especialidades-dev/nexus-music',
                       );
                     },
                   ),

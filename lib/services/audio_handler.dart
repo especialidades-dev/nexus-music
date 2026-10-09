@@ -954,17 +954,24 @@ class MediaLibrary {
     } catch (e) {
       box = await Hive.openBox(libId);
     }
-    final songs = box.values.toList().map((e) {
-      final song = MediaItemBuilder.fromJson(e);
-      return MediaItem(
-        id: song.id,
-        title: song.title,
-        artist: song.artist,
-        artUri: song.artUri,
-        extras: {"libraryId": libId},
-        playable: true,
-      );
-    }).toList();
+    final songs = <MediaItem>[];
+    for (final e in box.values.toList()) {
+      try {
+        final song = MediaItemBuilder.fromJson(e);
+        songs.add(MediaItem(
+          id: song.id,
+          title: song.title,
+          artist: song.artist,
+          artUri: song.artUri,
+          extras: {"libraryId": libId},
+          playable: true,
+        ));
+      } catch (err) {
+        // A single corrupt/legacy entry must not break the whole library
+        // (this is what made saved favourites disappear / unplayable).
+        printINFO("getLibSongs[$libId] skipped bad entry: $err");
+      }
+    }
 
     if (!libId.contains("SongDownloads")) {
       await box.close();
