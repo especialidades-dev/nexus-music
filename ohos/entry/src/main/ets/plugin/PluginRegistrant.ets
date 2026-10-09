@@ -4,6 +4,7 @@ import PathUtils from '@ohos/flutter_ohos/src/main/ets/util/PathUtils';
 import AudioBridge from './AudioBridge';
 import { PoTokenBridge } from './PoTokenBridge';
 import { UrlBridge, UrlServiceHandler } from './UrlBridge';
+import { FileBridge, FileServiceHandler } from './FileBridge';
 
 class AudioServiceHandler implements MethodCallHandler {
   private audioBridge: AudioBridge
@@ -106,6 +107,7 @@ class PoTokenServiceHandler implements MethodCallHandler {
 export class NexusMusicPluginRegistrant {
   private audioBridge: AudioBridge = new AudioBridge();
   private urlBridge: UrlBridge = new UrlBridge();
+  private fileBridge: FileBridge = new FileBridge();
 
   registerPlugins(flutterEngine: FlutterEngine, context: common.Context): void {
     this.registerAudioService(flutterEngine, context);
@@ -113,6 +115,7 @@ export class NexusMusicPluginRegistrant {
     this.registerPathProvider(flutterEngine, context);
     this.registerPoTokenService(flutterEngine);
     this.registerUrlService(flutterEngine, context);
+    this.registerFileService(flutterEngine, context);
     PoTokenBridge.getInstance().loadAndExtract();
   }
 
@@ -180,5 +183,11 @@ export class NexusMusicPluginRegistrant {
     this.urlBridge.setContext(context);
     const channel = new MethodChannel(flutterEngine.getDartExecutor(), 'nexus_music/url')
     channel.setMethodCallHandler(new UrlServiceHandler(this.urlBridge))
+  }
+
+  private registerFileService(flutterEngine: FlutterEngine, context: common.Context): void {
+    this.fileBridge.setContext(context);
+    const channel = new MethodChannel(flutterEngine.getDartExecutor(), 'nexus_music/filepicker')
+    channel.setMethodCallHandler(new FileServiceHandler(this.fileBridge))
   }
 }

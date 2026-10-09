@@ -2,10 +2,35 @@ import media from '@ohos.multimedia.media';
 import avSession from '@ohos.multimedia.avsession';
 import image from '@ohos.multimedia.image';
 import http from '@ohos.net.http';
+import fs from '@ohos.file.fs';
+import hilog from '@ohos.hilog';
 import { MethodChannel } from '@ohos/flutter_ohos';
 import common from '@ohos.app.ability.common';
 import backgroundTaskManager from '@ohos.resourceschedule.backgroundTaskManager';
 import wantAgent from '@ohos.wantAgent';
+
+const LOG_DOMAIN = 0xD000F11;
+const LOG_TAG = 'NexusMusicAudio';
+
+function logInfo(msg: string): void {
+  try {
+    hilog.info(LOG_DOMAIN, LOG_TAG, '%{public}s', msg);
+  } catch (e) {
+    try {
+      console.info(`NexusMusicAudio: ${msg}`);
+    } catch (e2) {}
+  }
+}
+
+function logError(msg: string): void {
+  try {
+    hilog.error(LOG_DOMAIN, LOG_TAG, '%{public}s', msg);
+  } catch (e) {
+    try {
+      console.error(`NexusMusicAudio ERR: ${msg}`);
+    } catch (e2) {}
+  }
+}
 
 interface PlaybackError {
   code: number;
@@ -17,6 +42,7 @@ class AudioBridge {
   private isInitialized: boolean = false;
   private callbackChannel: MethodChannel | null = null;
   private lastUrl: string | null = null;
+  private openedFd: number = -1;
   private isPlaying: boolean = false;
   private isTransitioning: boolean = false;
   private session: avSession.AVSession | null = null;
@@ -144,7 +170,7 @@ class AudioBridge {
   }
 
   private onStateChange(state: media.AVPlayerState): void {
-    console.info(`NexusMusic AVPlayer state: ${state}`);
+    logInfo(`AVPlayer state: ${state}`);
     if (state === 'playing') {
       this.isPlaying = true;
       this.notify('onPlayerStateChanged', true);
@@ -193,7 +219,7 @@ class AudioBridge {
     this.stallTimer = setTimeout(() => {
       this.stallTimer = undefined;
       if (this.player && this.player.state === 'playing' && this.isPlaying) {
-        console.error('NexusMusic stall watchdog triggered (no timeUpdate for 30s)');
+        logError('stall watchdog triggered (no timeUpdate for 30s)');
         this.notify('onPlaybackError', JSON.parse(JSON.stringify({
           code: 'STALL_TIMEOUT',
           message: 'Playback stalled (no position updates)'
@@ -249,6 +275,29 @@ class AudioBridge {
     return new Promise<void>(resolve => setTimeout(resolve, ms));
   }
 
+  /**
+   * AVPlayer cannot open document-picker URIs (file://docs/..., content://...)
+   * directly. Open them through the file API and play via a file descriptor.
+   */
+  private resolvePlayUrl(url: string): string {
+    if (url.startsWith('file://docs') || url.startsWith('file://media') ||
+        url.startsWith('content://') || url.startsWith('datashare://')) {
+      try {
+        if (this.openedFd >= 0) {
+          fs.closeSync(this.openedFd);
+          this.openedFd = -1;
+        }
+        const file = fs.openSync(url, fs.OpenMode.READ_ONLY);
+        this.openedFd = file.fd;
+        logInfo(`play fd=${file.fd} for ${url.substring(0, 80)}`);
+        return `fd://${file.fd}`;
+      } catch (e) {
+        console.error(`NexusMusic resolvePlayUrl error: ${JSON.stringify(e)}`);
+      }
+    }
+    return url;
+  }
+
   async play(url?: string): Promise<void> {
     if (!this.player || !this.isInitialized) {
       console.error('NexusMusic player not initialized');
@@ -259,31 +308,41 @@ class AudioBridge {
       console.error('NexusMusic play: no url');
       return;
     }
-    console.info(`NexusMusic play: url=${playUrl.substring(0, 100)}`);
+    // Whether this call refers to the track already loaded. Must be computed
+    // BEFORE lastUrl is updated, otherwise a request for a different song while
+    // paused would be treated as "resume current" and keep the old audio.
+    const isSameTrack = url === undefined || url === this.lastUrl;
+    logInfo('CROSS-TRACK FIX V2');
+    logInfo(
+      `play url=${playUrl.substring(0, 100)} same=${isSameTrack} state=${this.player.state} last=${this.lastUrl ? this.lastUrl.substring(0, 60) : 'null'}`);
     if (this.isTransitioning) {
-      console.info('NexusMusic play: already transitioning, requeuing');
+      logInfo('play req: already transitioning, requeuing');
       setTimeout(() => { this.play(playUrl); }, 500);
       return;
     }
     this.isTransitioning = true;
-    this.lastUrl = playUrl;
     try {
       if (!this.sessionActive && this.context) {
         await this.setupAVSession();
       }
-      if (this.player.state === 'paused' && (url === undefined || url === this.lastUrl)) {
+      if (this.player.state === 'paused' && isSameTrack) {
+        this.lastUrl = playUrl;
+        logInfo('play req: resume current track');
         await this.player.play();
         return;
       }
+      logInfo('play req: load new track (reset+prepare)');
       await this.player.reset();
       await this.delay(300);
-      (this.player as ESObject).url = playUrl;
+      const resolvedUrl = this.resolvePlayUrl(playUrl);
+      this.lastUrl = playUrl;
+      (this.player as ESObject).url = resolvedUrl;
       await this.delay(100);
       await this.player.prepare();
       await this.delay(100);
       await this.player.play();
     } catch (err) {
-      console.error(`NexusMusic play error: ${JSON.stringify(err)}`);
+      logError(`play error: ${JSON.stringify(err)}`);
       this.notify('onPlayerStateChanged', false);
     } finally {
       this.isTransitioning = false;
@@ -342,6 +401,7 @@ class AudioBridge {
   }
 
   async pause(): Promise<void> {
+    logInfo(`pause req, player state=${this.player ? this.player.state : 'null'}`);
     if (this.player && this.isInitialized) {
       await this.player.pause();
     }
@@ -389,6 +449,14 @@ class AudioBridge {
     if (this.player) {
       this.player.release();
       this.isInitialized = false;
+    }
+    if (this.openedFd >= 0) {
+      try {
+        fs.closeSync(this.openedFd);
+      } catch (e) {
+        console.error(`NexusMusic close fd error: ${JSON.stringify(e)}`);
+      }
+      this.openedFd = -1;
     }
   }
 }

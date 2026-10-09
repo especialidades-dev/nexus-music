@@ -249,3 +249,52 @@ HDC=/home/lex/Documentos/App_harmony/command-line-tools/toolchains/hdc
   (`A03D00/io.github.nexusmusic.app/JSAPP: NexusMusic ...`).
 - `nexus-music-full` no tiene proyecto Flutter-OHOS propio: los ficheros nativos se **espejan**
   a `NexusMusicHarmonyOs/ohos/` (mantener sincronizados Audio/Url/PluginRegistrant/module.json5/iconos).
+
+---
+
+## 10. Nueva funcionalidad — Carpeta de descargas + reproducción local (v2.1.8)
+
+### Qué aporta
+1. **Selección de carpeta del teléfono** (Ajustes → Descargar → "Ubicación de la descarga").
+   - Antes: `file_picker`/`permission_handler` no tienen implementación OHOS
+     (`GeneratedPluginRegistrant` vacío), el selector hacía `MissingPluginException` silencioso.
+   - Ahora: puente nativo `FileBridge` (`nexus_music/filepicker`) que abre el
+     `DocumentViewPicker` del sistema en modo **FOLDER** (sin permisos especiales).
+2. **Descarga de favoritas a esa carpeta**:
+   - Botón "Descargar todas las canciones favoritas" nuevo en Ajustes → Descargar
+     (además del icono de descarga que ya existía en la pantalla de la playlist Favoritos).
+3. **Reproducción desde el fichero descargado (sin streaming)**:
+   - Script default: carpeta privada `files/Music` (se verifica existencia real).
+   - Carpeta elegida: la app descarga a un temporal del sandbox y lo **importa** a la
+     carpeta elegida vía `importFile` nativo; guarda el URI del fichero y reproduce con
+     AVPlayer a través de `fd://` (abierto con `fs.openSync(uri)`). Si el fichero no
+     existe, sólo entonces cae a stream online.
+
+### Archivos
+- `ohos/entry/src/main/ets/plugin/FileBridge.ets` (nuevo): `pickFolder`, `ensureAccess`,
+  `importFile`, `fileExists`, `removeFile`; `persistPermission` best-effort.
+- `ohos/entry/src/main/ets/plugin/PluginRegistrant.ets`: registra `registerFileService`.
+- `ohos/entry/src/main/ets/plugin/AudioBridge.ets`: reproduce URIs `file://docs`/`content://`
+  abriendo `fd://` (cierra el fd en `release`).
+- `lib/utils/folder_picker.dart` (nuevo): helper Dart `pickDownloadFolder()` (OHOS nativo,
+  resto de plataformas sigue `file_picker`), `folderAccessible`, `importFileIntoFolder`,
+  `downloadedFileExists`, `deleteDownloadedFile`.
+- `lib/ui/screens/Settings/settings_screen_controller.dart`: `setDownloadLocation()` usa el
+  selector nativo en OHOS; nuevos campos `downloadLocationDisplay/IsExternal/Persisted`;
+  `resetDownloadLocation()`; validación de acceso en init.
+- `lib/ui/screens/Settings/settings_screen.dart`: subtítulo muestra la carpeta elegida y
+  nuevo tile "Descargar todas las canciones favoritas".
+- `lib/services/downloader.dart`: descarga externa = temporal en sandbox → `importFileIntoFolder`
+  → URI final; si la carpeta no es accesible, mantiene el fichero en el sandbox (`Music`).
+- `lib/services/harmonyos_audio_service.dart`: `checkNGetUrl` comprueba URIs de carpeta con
+  `downloadedFileExists`; si falta, stream online.
+- `lib/utils/get_localization.dart`: claves `downloadAllFavorites` (en/es).
+- Espejo `NexusMusicHarmonyOs/ohos/` sincronizado (FileBridge/AudioBridge/PluginRegistrant).
+
+### Límites conocidos
+- `ohos.permission.FILE_ACCESS_PERSIST` es `system_basic`/ACL y el perfil debug actual tiene
+  `allowed-acls: []`, así que la persistencia entre reinicios es best-effort: si el sistema
+  revoca el acceso a la carpeta, al arrancar la app se relega a la carpeta interna y se deberá
+  re-elegir la carpeta. La descarga en sesión funciona sin persistir.
+- Si `importFile` falla (permiso revocado), la canción se guarda igual en `files/Music`
+  (privada) para no perder la reproducción offline.
