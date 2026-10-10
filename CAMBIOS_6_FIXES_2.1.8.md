@@ -5,7 +5,7 @@
 >
 > Fecha: 2026-10-09
 > Repo canónico: `nexus-music-full` (aquí se edita y se commitea; el push a GitHub lo hace otro agente).
-> Versión: **2.1.8+218** (NO cambiar). HAP final: `nexusmusic-2.1.8+218-harmonyos.hap`.
+> Versión: **2.1.8+218** (NO cambiar). HAP final: `nexusmusic-2.1.9+219-harmonyos.hap`.
 
 ---
 
@@ -220,12 +220,12 @@ java -jar "$SIGNTOOL" sign-app -mode localSign -keyAlias "nexus-debug-key" -keyP
   -appCertFile ohos/signing/material/debug.cer -profileFile ohos/signing/material/debug.p7b \
   -inFile build/ohos/hap/entry-default-unsigned.hap \
   -signAlg "SHA256withECDSA" -keystoreFile ohos/signing/material/debug.p12 -keystorePwd "$PWD32" \
-  -outFile "build/ohos/hap/nexusmusic-2.1.8+218-harmonyos.hap" \
+  -outFile "build/ohos/hap/nexusmusic-2.1.9+219-harmonyos.hap" \
   -compatibleVersion 12 -signCode "1"
 
 # 3) Instalar
 HDC=/home/lex/Documentos/App_harmony/command-line-tools/toolchains/hdc
-"$HDC" install "build/ohos/hap/nexusmusic-2.1.8+218-harmonyos.hap"
+"$HDC" install "build/ohos/hap/nexusmusic-2.1.9+219-harmonyos.hap"
 "$HDC" shell "aa force-stop io.github.nexusmusic.app"
 "$HDC" shell "aa start -a EntryAbility -b io.github.nexusmusic.app"
 ```
