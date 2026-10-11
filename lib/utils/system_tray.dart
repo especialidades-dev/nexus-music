@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:io' show Platform;
 
 import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
@@ -18,9 +19,9 @@ class DesktopSystemTray extends GetxService with TrayListener {
   }
 
   Future<void> initSystemTray() async {
-    String path = GetPlatform.isWindows
+    final String path = _assetFilePath(GetPlatform.isWindows
         ? 'assets/icons/icon.ico'
-        : 'assets/icons/icon.png';
+        : 'assets/icons/icon.png');
 
     await windowManager.ensureInitialized();
     final playerController = Get.find<PlayerController>();
@@ -106,6 +107,27 @@ class DesktopSystemTray extends GetxService with TrayListener {
 
     super.onTrayIconRightMouseDown();
   }
+}
+}
+
+/// Resolves a bundled asset to an absolute file path so the system tray icon is
+/// found even when the process working directory is not the bundle directory
+/// (e.g. when launched from the application menu).
+String _assetFilePath(String relative) {
+  try {
+    final direct = File(relative);
+    if (direct.existsSync()) return direct.absolute.path;
+    final exe = File(Platform.resolvedExecutable).resolveSymbolicLinksSync();
+    final bundleDir = File(exe).parent.path;
+    final candidates = <String>[
+      '$bundleDir/data/flutter_assets/$relative',
+      '$bundleDir/$relative',
+    ];
+    for (final candidate in candidates) {
+      if (File(candidate).existsSync()) return candidate;
+    }
+  } catch (_) {}
+  return relative;
 }
 
 class CloseWindowListener extends WindowListener {
