@@ -24,6 +24,12 @@ static void my_application_activate(GApplication* application) {
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
 
+  // Use the installed application icon (Nexus Music / pak-choi) for the
+  // window and taskbar so the correct branding is shown at launch instead of a
+  // generic or stale icon. The icon is installed by the packaging as
+  // `nexusmusic` under the hicolor icon theme.
+  gtk_window_set_default_icon_name("nexusmusic");
+
   // Use a header bar when running in GNOME as this is the common style used
   // by applications and is the setup most users will be using (e.g. Ubuntu
   // desktop).

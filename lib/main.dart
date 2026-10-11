@@ -13,7 +13,7 @@ import '/services/piped_service.dart';
 import 'utils/app_link_controller.dart';
 import '/services/audio_handler.dart';
 import '/services/music_service.dart';
-import '/ui/home.dart';
+import '/ui/splash_screen.dart';
 import '/ui/player/player_controller.dart';
 import 'ui/screens/Settings/settings_screen_controller.dart';
 import '/ui/utils/theme_controller.dart';
@@ -49,7 +49,7 @@ class MyApp extends StatelessWidget {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     return GetMaterialApp(
         title: 'Nexus Music',
-        home: const Home(),
+        home: const AppSplashScreen(),
         debugShowCheckedModeBanner: false,
         translations: Languages(),
         locale:

@@ -23,6 +23,7 @@ import '../ui/screens/Home/home_screen_controller.dart';
 import '/services/background_task.dart';
 import '/services/permission_service.dart';
 import '../utils/helper.dart';
+import '../utils/folder_picker.dart';
 import '/models/media_Item_builder.dart';
 import '/services/utils.dart';
 import '../ui/screens/Settings/settings_screen_controller.dart';
@@ -834,7 +835,24 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
       if (path.contains(
           "${Get.find<SettingsScreenController>().supportDirPath}/Music")) {
-        return streamInfo;
+        // Only trust the local file when it really exists. Otherwise fall back
+        // to an online stream (mirrors the HarmonyOS fix: a leftover download
+        // entry without its file made songs "stop playing").
+        if (await File(path).exists()) {
+          return streamInfo;
+        }
+        printINFO("Downloaded file missing, fetching online ($songId)");
+        return checkNGetUrl(songId, offlineReplacementUrl: true);
+      }
+      // A folder chosen via the system picker may be a content URI on some
+      // platforms; handle it defensively.
+      if (isContentFolder(path)) {
+        if (await downloadedFileExists(path)) {
+          return streamInfo;
+        }
+        printINFO(
+            "Downloaded file missing in chosen folder, fetching online ($songId)");
+        return checkNGetUrl(songId, offlineReplacementUrl: true);
       }
       //check file access and if file exist in storage
       final status = await PermissionService.getExtStoragePermission();

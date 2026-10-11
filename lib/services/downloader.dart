@@ -213,12 +213,17 @@ class Downloader extends GetxService {
     final String downloadTarget = isExternalFolder
         ? "${settingsScreenController.supportDirPath}/.tmp_download_${song.id}.$actualDownformat"
         : "$dirPath/$fileName";
-    printINFO("Downloading to: $downloadTarget (external=$isExternalFolder) dirPath=$dirPath");
+    printINFO("Downloading to: $downloadTarget (external=$isExternalFolder)");
     final totalBytes = requiredAudioStream.size;
 
+    // When the stream size is unknown (0) sending `Range: bytes=0-0` makes the
+    // server return a single byte, producing a corrupt/empty download. Only send
+    // the range header when we actually know the total size (parity with Android).
     _dio.download(
         requiredAudioStream.url,
-        options: Options(headers: {"Range": 'bytes=0-$totalBytes'}),
+        options: totalBytes > 0
+            ? Options(headers: {"Range": 'bytes=0-$totalBytes'})
+            : Options(),
         downloadTarget, onReceiveProgress: (count, total) {
       if (total <= 0) return;
       songDownloadingProgress.value = ((count / total) * 100).toInt();

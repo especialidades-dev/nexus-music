@@ -5,6 +5,8 @@ import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
+import '../utils/helper.dart';
+
 bool get isHarmonyOS {
   try {
     return GetPlatform.isWeb == false &&
@@ -26,9 +28,17 @@ class StreamProvider {
       {required this.playable, this.audioFormats, this.statusMSG = ""});
 
   static Future<StreamProvider> fetch(String videoId) async {
-    if (isHarmonyOS) {
-      return fetchAudioFromInnerTube(videoId);
+    printINFO("StreamProvider.fetch($videoId) isAndroid=${GetPlatform.isAndroid} isLinux=${GetPlatform.isLinux} isHarmonyOS=$isHarmonyOS");
+    if (isHarmonyOS || GetPlatform.isAndroid || GetPlatform.isLinux) {
+      final inner = await fetchAudioFromInnerTube(videoId);
+      if (inner.playable) {
+        return inner;
+      }
+      if (isHarmonyOS) {
+        return inner;
+      }
     }
+    printINFO("StreamProvider.fetch: InnerTube not playable, falling back to YoutubeExplode");
     final yt = YoutubeExplode();
 
     try {
@@ -340,6 +350,7 @@ class _StreamClientUtils {
 final Map<String, List<String>> _blockedStreamClients = {};
 
 Future<StreamProvider> fetchAudioFromInnerTube(String videoId) async {
+  printINFO("InnerTube: resolving $videoId");
   final dio = Dio(BaseOptions(
     connectTimeout: const Duration(seconds: 10),
     receiveTimeout: const Duration(seconds: 15),
@@ -347,11 +358,12 @@ Future<StreamProvider> fetchAudioFromInnerTube(String videoId) async {
   ));
 
   final visitorData = await _resolveVisitorData();
+  printINFO("InnerTube: visitorData=${visitorData != null ? 'present (${visitorData.length} chars)' : 'null'}");
   final blocked = _blockedStreamClients[videoId] ?? const <String>[];
 
   for (final client in _InnerTubeClient.rotation) {
     if (blocked.contains(client.clientName)) {
-      // printINFO("${client.clientName} bloqueado para $videoId");
+      printINFO("InnerTube: ${client.clientName} blocked for $videoId");
       continue;
     }
 
@@ -380,11 +392,13 @@ Future<StreamProvider> fetchAudioFromInnerTube(String videoId) async {
           ? response.data as Map<String, dynamic>
           : (response.data as Map).cast<String, dynamic>();
     } catch (e) {
-      // printINFO("${client.clientName} request error: $e");
+      printINFO("InnerTube: ${client.clientName} request error: $e");
       continue;
     }
 
     final playability = data['playabilityStatus']?['status'];
+    final reason = data['playabilityStatus']?['reason'] ?? '';
+    printINFO("InnerTube: ${client.clientName} playability=$playability reason=$reason");
     if (playability != "OK") {
       continue;
     }
@@ -393,11 +407,11 @@ Future<StreamProvider> fetchAudioFromInnerTube(String videoId) async {
         .whereType<Map>()
         .map((e) => e.cast<String, dynamic>())
         .toList();
+    final audioFormats = adaptiveFormats.where((f) => (f['mimeType']?.toString() ?? '').contains('audio')).toList();
+    printINFO("InnerTube: ${client.clientName} adaptiveFormats=${adaptiveFormats.length} audioFormats=${audioFormats.length} hasUrl=${audioFormats.isNotEmpty ? (audioFormats.first['url'] != null) : false}");
 
     final audios = <Audio>[];
-    for (final f in adaptiveFormats) {
-      final mime = f['mimeType']?.toString() ?? "";
-      if (!mime.contains("audio")) continue;
+    for (final f in audioFormats) {
       var url = f['url']?.toString();
       if (url == null || url.isEmpty) continue;
       url = _StreamClientUtils.patchClientVersion(url, client.clientVersion);
@@ -427,12 +441,51 @@ Future<StreamProvider> fetchAudioFromInnerTube(String videoId) async {
       ));
     }
 
+    if (audios.isEmpty) {
+      final combinedFormats = (data['streamingData']?['formats'] as List? ?? [])
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList();
+      for (final f in combinedFormats) {
+        var url = f['url']?.toString();
+        if (url == null || url.isEmpty) continue;
+        url = _StreamClientUtils.patchClientVersion(url, client.clientVersion);
+
+        final profile = _StreamClientUtils.resolveRequestProfile(url);
+        final playable = await _isUrlPlayable(dio, url, profile);
+        if (!playable) continue;
+
+        final itag = f['itag'] is int ? f['itag'] as int : int.tryParse(f['itag']?.toString() ?? "") ?? 0;
+        final codecStr = f['mimeType']?.toString() ?? "";
+        final bitrate = f['bitrate'] is int
+            ? f['bitrate'] as int
+            : int.tryParse(f['bitrate']?.toString() ?? "") ?? 0;
+        final durationMs = f['approxDurationMs']?.toString();
+        final size = f['contentLength']?.toString();
+
+        audios.add(Audio(
+          itag: itag,
+          audioCodec: codecStr.contains("mp4a") ? Codec.mp4a : Codec.opus,
+          bitrate: bitrate,
+          duration: durationMs != null ? int.tryParse(durationMs) ?? 0 : 0,
+          loudnessDb: 0.0,
+          url: url,
+          size: size != null ? int.tryParse(size) ?? 0 : 0,
+        ));
+        break;
+      }
+      if (audios.isNotEmpty) {
+        printINFO("InnerTube: ${client.clientName} → ${audios.length} combined format(s) used as fallback");
+      }
+    }
+
     if (audios.isNotEmpty) {
-      // printINFO("${client.clientName}: ${audios.length} audios válidos");
+      printINFO("InnerTube: ${client.clientName} → ${audios.length} valid audios");
       return StreamProvider(playable: true, statusMSG: "OK", audioFormats: audios);
     }
   }
 
+  printINFO("InnerTube: all clients failed for $videoId");
   return StreamProvider(
       playable: false, statusMSG: "Stream resolution failed");
 }

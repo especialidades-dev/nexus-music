@@ -111,8 +111,16 @@ class SettingsScreenController extends GetxController {
     keepScreenAwake.value =
         setBox.get("keepScreenAwake") ?? GetPlatform.isDesktop ? true : false;
     final defaultDownloadDir = await _createInAppSongDownDir();
+    exportLocationPath.value =
+        setBox.get("exportLocationPath") ?? "/storage/emulated/0/Music";
+    // If the user never picked a dedicated downloads folder, keep the songs in a
+    // visible place on Android by reusing the configured export folder (default
+    // /storage/emulated/0/Music) instead of the hidden in-app directory, so
+    // pressing "download" lands where the user expects. HarmonyOS keeps its
+    // sandbox default (its document URIs are handled by the native bridge).
     final storedDownloadPath = setBox.get('downloadLocationPath') as String?;
-    String resolvedDownloadPath = storedDownloadPath ?? defaultDownloadDir;
+    String resolvedDownloadPath = storedDownloadPath ??
+        (GetPlatform.isAndroid ? exportLocationPath.value : defaultDownloadDir);
     if (isDesktop && resolvedDownloadPath.contains("emulated")) {
       resolvedDownloadPath = defaultDownloadDir;
     }
@@ -131,8 +139,6 @@ class SettingsScreenController extends GetxController {
       });
     }
 
-    exportLocationPath.value =
-        setBox.get("exportLocationPath") ?? "/storage/emulated/0/Music";
     downloadingFormat.value = setBox.get('downloadingFormat') ?? "m4a";
     discoverContentType.value = setBox.get('discoverContentType') ?? "QP";
     slidableActionEnabled.value = setBox.get('slidableActionEnabled') ?? true;
@@ -217,6 +223,14 @@ class SettingsScreenController extends GetxController {
 
     setBox.put("exportLocationPath", pickedFolderPath);
     exportLocationPath.value = pickedFolderPath;
+    // While the user has never chosen a dedicated downloads folder, keep
+    // downloads in this same visible folder so "download" and "export" agree.
+    if (GetPlatform.isAndroid &&
+        !setBox.containsKey('downloadLocationPath')) {
+      downloadLocationPath.value = pickedFolderPath;
+      downloadLocationDisplay.value = pickedFolderPath;
+      downloadLocationIsExternal.value = isContentFolder(pickedFolderPath);
+    }
   }
 
   Future<void> setDownloadLocation() async {
