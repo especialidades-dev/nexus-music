@@ -98,3 +98,9 @@ flutter_distributor package --platform linux --targets deb
 ### Próximos pasos (pendientes)
 - Sincronizar implementación con Android/Linux siguiendo la misma lógica (carpeta elegida + prioridad local)
 - Push de los cambios en `nexus-music-full` (otro agente se encarga)
+### Fix reciente (2.1.9+219) - Acceso a carpeta externa en OHOS
+- **Causa**: `fs.accessSync(uri)` con `file://docs/...` devuelve falso. `checkPermissionNDir()` reseteaba a sandbox.
+- **Solución**: `FileBridge.ets` añade `uriToPath()` (convierte URI docs→path), `checkAccess()` que prueba URI y path (accessSync/statSync). `ensureAccess/fileExists/removeFile` usan ambos. `importFile` intenta abrir destino por URI y por path.
+- **Dart**: eliminado `resetDownloadLocation()` destructivo en `Downloader.checkPermissionNDir()` para carpetas `isContentFolder`. Fallback por archivo mantiene archivo en sandbox sin cambiar configuración.
+- **Versionado**: `ohos/AppScope/app.json5` a 2.1.9+219, `lib/ui/screens/Settings/settings_screen_controller.dart` "V2.1.9".
+- **Prueba**: descargas van a carpeta `Musica` (document URI) y se guardan allí.
