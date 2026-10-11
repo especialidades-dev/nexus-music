@@ -102,10 +102,20 @@ class FileBridge {
     const destUri = `${base}/${fileName}`;
     let file: fs.File | null = null;
     try {
+      console.info(`NexusMusic importFile start: folderUri=${folderUri} fileName=${fileName} srcPath=${srcPath}`);
+      try {
+        const srcStat = await fs.stat(srcPath);
+        console.info(`NexusMusic importFile srcStat ok: size=${srcStat.size}`);
+      } catch (se) {
+        console.error(`NexusMusic importFile srcStat failed: ${JSON.stringify(se)}`);
+      }
       file = fs.openSync(destUri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
       fs.copyFileSync(srcPath, file.fd);
       console.info(`NexusMusic importFile ok: ${destUri}`);
       return destUri;
+    } catch (e) {
+      console.error(`NexusMusic importFile error: ${JSON.stringify(e)}`);
+      throw new Error(String(e));
     } finally {
       if (file !== null) {
         try {
