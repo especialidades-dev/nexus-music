@@ -42,12 +42,11 @@ class Downloader extends GetxService {
 
     if (isHarmonyOSRuntime && isContentFolder(dirPath)) {
       // HarmonyOS document URI folder: no storage permission is involved, just
-      // make sure the grant is still valid. If it was revoked, fall back to the
-      // in-app folder so downloads keep working.
-      final ok = await folderAccessible(dirPath);
-      if (!ok) {
-        settingsScreenController.resetDownloadLocation();
-      }
+      // probe the grant. We must NOT reset the user's chosen folder here: a
+      // failed probe (e.g. a restricted public directory) would silently move
+      // downloads back to the sandbox. If the folder really is unreachable the
+      // per-file import step falls back to the in-app folder instead.
+      await folderAccessible(dirPath);
       return true;
     }
 
@@ -214,7 +213,7 @@ class Downloader extends GetxService {
     final String downloadTarget = isExternalFolder
         ? "${settingsScreenController.supportDirPath}/.tmp_download_${song.id}.$actualDownformat"
         : "$dirPath/$fileName";
-    printINFO("Downloading to: $downloadTarget (external=$isExternalFolder)");
+    printINFO("Downloading to: $downloadTarget (external=$isExternalFolder) dirPath=$dirPath");
     final totalBytes = requiredAudioStream.size;
 
     _dio.download(

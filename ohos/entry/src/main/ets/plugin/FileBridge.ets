@@ -40,6 +40,51 @@ class FileBridge {
     return false;
   }
 
+  /**
+   * Converts a `file://docs/...` / `file://media/...` document URI into a plain
+   * filesystem path. `fs` APIs do not always understand the document URI scheme,
+   * which caused bogus "folder not accessible" results and unwanted fallbacks
+   * to the sandbox. Plain paths are returned unchanged.
+   */
+  private uriToPath(uri: string): string {
+    if (uri.startsWith('file://')) {
+      try {
+        return new fileUri.FileUri(uri).path;
+      } catch (e) {
+        return uri;
+      }
+    }
+    return uri;
+  }
+
+  /** True when `uri` (document URI or path) can be accessed. */
+  private checkAccess(uri: string): boolean {
+    if (!uri) {
+      return false;
+    }
+    const candidates: string[] = [uri];
+    const path = this.uriToPath(uri);
+    if (path && path !== uri) {
+      candidates.push(path);
+    }
+    for (const candidate of candidates) {
+      try {
+        if (fs.accessSync(candidate)) {
+          return true;
+        }
+      } catch (e) {
+        // try next candidate
+      }
+      try {
+        fs.statSync(candidate);
+        return true;
+      } catch (e) {
+        // try next candidate
+      }
+    }
+    return false;
+  }
+
   async pickFolder(): Promise<FolderPickResult | null> {
     if (!this.context) {
       console.error('NexusMusic pickFolder: no context');
@@ -89,17 +134,16 @@ class FileBridge {
     } catch (e) {
       // Ignore: restricted paths may throw even if session access exists.
     }
-    try {
-      return fs.accessSync(uri);
-    } catch (e) {
-      return false;
-    }
+    const ok = this.checkAccess(uri);
+    console.info(`NexusMusic ensureAccess: uri=${uri} ok=${ok}`);
+    return ok;
   }
 
   /** Copy a sandbox file into the picked folder; returns the destination URI. */
   async importFile(folderUri: string, fileName: string, srcPath: string): Promise<string> {
     const base = folderUri.endsWith('/') ? folderUri.substring(0, folderUri.length - 1) : folderUri;
     const destUri = `${base}/${fileName}`;
+    const destPath = `${this.uriToPath(base)}/${fileName}`;
     let file: fs.File | null = null;
     try {
       console.info(`NexusMusic importFile start: folderUri=${folderUri} fileName=${fileName} srcPath=${srcPath}`);
@@ -109,7 +153,21 @@ class FileBridge {
       } catch (se) {
         console.error(`NexusMusic importFile srcStat failed: ${JSON.stringify(se)}`);
       }
-      file = fs.openSync(destUri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+      const destCandidates: string[] = destPath !== destUri ? [destUri, destPath] : [destUri];
+      let openError: Object | null = null;
+      for (const dest of destCandidates) {
+        try {
+          file = fs.openSync(dest, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+          console.info(`NexusMusic importFile opened dest=${dest}`);
+          break;
+        } catch (oe) {
+          openError = oe;
+          console.error(`NexusMusic importFile open failed dest=${dest}: ${JSON.stringify(oe)}`);
+        }
+      }
+      if (file === null) {
+        throw new Error(`cannot open destination: ${JSON.stringify(openError)}`);
+      }
       fs.copyFileSync(srcPath, file.fd);
       console.info(`NexusMusic importFile ok: ${destUri}`);
       return destUri;
@@ -131,23 +189,27 @@ class FileBridge {
     if (!uri) {
       return false;
     }
-    try {
-      return fs.accessSync(uri);
-    } catch (e) {
-      return false;
-    }
+    const ok = this.checkAccess(uri);
+    console.info(`NexusMusic fileExists: uri=${uri} ok=${ok}`);
+    return ok;
   }
 
   removeFile(uri: string): boolean {
     if (!uri) {
       return false;
     }
+    const path = this.uriToPath(uri);
     try {
       fs.unlinkSync(uri);
       return true;
     } catch (e) {
-      console.error(`NexusMusic removeFile error: ${JSON.stringify(e)}`);
-      return false;
+      try {
+        fs.unlinkSync(path);
+        return true;
+      } catch (e2) {
+        console.error(`NexusMusic removeFile error: ${JSON.stringify(e2)}`);
+        return false;
+      }
     }
   }
 }
