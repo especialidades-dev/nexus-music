@@ -104,3 +104,52 @@ flutter_distributor package --platform linux --targets deb
 - **Dart**: eliminado `resetDownloadLocation()` destructivo en `Downloader.checkPermissionNDir()` para carpetas `isContentFolder`. Fallback por archivo mantiene archivo en sandbox sin cambiar configuración.
 - **Versionado**: `ohos/AppScope/app.json5` a 2.1.9+219, `lib/ui/screens/Settings/settings_screen_controller.dart` "V2.1.9".
 - **Prueba**: descargas van a carpeta `Musica` (document URI) y se guardan allí.
+
+---
+
+## Sesión: Port a Linux de 2 fixes de Harmony/Android (2026-10-11)
+
+### Contexto
+- Proyecto: Nexus Music (fork de Harmony Music), app **Linux** Flutter.
+- Fuente de aprendizaje: `NexusMusixAndroid/LEARNING_AGENTS.md` (port Harmony→Android) — mismos 2 fixes.
+- Versión: **2.1.9+219**.
+
+### Objetivo
+Portar a Linux los dos fixes ya aplicados en HarmonyOS y Android:
+1. **Descarga a la carpeta elegida**: al elegir carpeta y descargar una canción, el
+   archivo debe guardarse allí (antes no se guardaba / quedaba inservible).
+2. **Logo correcto al arrancar**: debe verse el logo pak-choi de Nexus Music en el
+   splash, no el logo antiguo de Harmony Music.
+
+### Cambio 1 — Descarga a carpeta elegida
+- **Causa**: `lib/services/downloader.dart` enviaba siempre `Range: bytes=0-$totalBytes`.
+  Cuando el stream de InnerTube devuelve `size == 0`, se enviaba `bytes=0-0` y el
+  archivo quedaba de 1 byte (o fallaba), por eso "no se guardaba en ningún lado".
+- **Fix**: enviar `Range` sólo si `totalBytes > 0`; en caso contrario `Options()` normal.
+- **Paridad**: mismo fix que Android (`NexusMusixAndroid/lib/services/downloader.dart`).
+- En Linux `isExternalFolder` es `false` (no es OHOS), por lo que `downloadTarget`
+  es directamente `"$carpetaElegida/$archivo"` — no hay import posterior.
+- También se alineó `checkPermissionNDir()` con Android: en OHOS **no** se resetea la
+  carpeta elegida si `folderAccessible` falla (el fallback por archivo mantiene el
+  archivo en sandbox sin cambiar la configuración).
+
+### Cambio 2 — Logo de arranque (splash pak-choi)
+- **Causa**: en Linux no existía splash y el logo mostrado podía ser el antiguo
+  (icono de ventana/bandeja sin resolver). En Linux no hay `launch_background.xml`
+  ni `startWindowIcon` (eso es Android/OHOS), así que se replicó la intención:
+  mostrar el logo pak-choi al iniciar.
+- **Fix**:
+  - `lib/ui/splash_screen.dart` (nuevo): `AppSplashScreen` muestra
+    `assets/icons/icon.png` (pak-choi) + "Nexus Music" y luego pasa a `Home`.
+  - `lib/main.dart`: `home: const AppSplashScreen()`.
+  - `linux/my_application.cc`: `gtk_window_set_default_icon_name("nexusmusic")`
+    para que la ventana/barra de tareas use el icono pak-choi instalado.
+  - `lib/utils/system_tray.dart`: se resuelve la ruta absoluta del asset
+    (`_assetFilePath`) porque al abrir desde el menú el cwd no es el bundle y el
+    icono de bandeja no se encontraba.
+
+### Artefacto generado
+- **`.deb`**: `NexusMusiLinux/dist/2.1.9+219/nexusmusic-2.1.9+219-linux.deb`
+  (copia en la raíz: `NexusMusiLinux/nexusmusic-2.1.9+219-linux.deb`).
+- `flutter analyze` → 0 errores.
+- Build con `/home/lex/flutter` (NO `flutter_ohos`).
