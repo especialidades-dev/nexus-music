@@ -215,7 +215,11 @@ flutter build hap --debug --no-codesign --target-platform ohos-arm64
 
 # 2) Firmar manual con hap-sign-tool (auto-sign falla)
 SIGNTOOL=/home/lex/ohos-sdk/commandline-tools/command-line-tools/sdk/default/openharmony/toolchains/lib/hap-sign-tool.jar
-PWD32="${HOS_KEYSTORE_PASSWORD}"
+
+# La contraseña del keystore NO va en el repositorio.
+# Defínela en el entorno o en un fichero local ignorado por git:
+#   export HOS_KEYSTORE_PASSWORD="$(cat ~/.config/nexusmusic/signing/debug.keypass)"
+PWD32="${HOS_KEYSTORE_PASSWORD:?define HOS_KEYSTORE_PASSWORD con la contraseña del keystore de depuración}"
 java -jar "$SIGNTOOL" sign-app -mode localSign -keyAlias "nexus-debug-key" -keyPwd "$PWD32" \
   -appCertFile ohos/signing/material/debug.cer -profileFile ohos/signing/material/debug.p7b \
   -inFile build/ohos/hap/entry-default-unsigned.hap \
